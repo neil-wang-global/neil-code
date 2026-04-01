@@ -1,0 +1,11 @@
+# lefthook.yml
+commit-msg:
+  commands:
+    commitlint:
+      run: ./node_modules/.bin/commitlint --edit {1}
+    no-coauthor:
+      run: |
+        if grep -iE "^(co-authored-by|made with|generated with|signed-off-by):" {1}; then
+          echo "ERROR: Co-authorship information (Co-Authored-By, Made with, etc.) is not allowed in commit messages"
+          exit 1
+        fi
