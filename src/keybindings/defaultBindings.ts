@@ -57,7 +57,7 @@ export const DEFAULT_BINDINGS: KeybindingBlock[] = [
             'cmd+shift+p': 'app:quickOpen' as const,
           }
         : {}),
-      ...(feature('TERMINAL_PANEL') ? { 'meta+j': 'app:toggleTerminal' } : {}),
+      'meta+j': 'app:toggleTerminal',
     },
   },
   {
