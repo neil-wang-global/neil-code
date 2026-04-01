@@ -2161,9 +2161,7 @@ export function REPL({
 
     // Clear any active token budget so the backstop doesn't fire on
     // a stale budget if the query generator hasn't exited yet.
-    if (feature('TOKEN_BUDGET')) {
-      snapshotOutputTokensForTurn(null);
-    }
+    snapshotOutputTokensForTurn(null);
     if (focusedInputDialog === 'tool-permission') {
       // Tool use confirm handles the abort signal itself
       toolUseConfirmQueue[0]?.onAbort();
@@ -2918,10 +2916,8 @@ export function REPL({
       resetTimingRefs();
       setMessages(oldMessages => [...oldMessages, ...newMessages]);
       responseLengthRef.current = 0;
-      if (feature('TOKEN_BUDGET')) {
-        const parsedBudget = input ? parseTokenBudget(input) : null;
-        snapshotOutputTokensForTurn(parsedBudget ?? getCurrentTurnTokenBudget());
-      }
+      const parsedBudget = input ? parseTokenBudget(input) : null;
+      snapshotOutputTokensForTurn(parsedBudget ?? getCurrentTurnTokenBudget());
       apiMetricsRef.current = [];
       setStreamingToolUses([]);
       setStreamingText(null);
