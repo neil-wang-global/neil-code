@@ -4,6 +4,7 @@ import { useSetAppState } from '../../state/AppState.js'
 import { saveGlobalConfig } from '../../utils/config.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import { getCompanion, saveCompanion } from '../../buddy/companion.js'
+import { generateCompanionProfile } from '../../buddy/observer.js'
 import { renderFace, renderSprite } from '../../buddy/sprites.js'
 import {
   EYES,
@@ -68,6 +69,7 @@ function CompanionCard({
   })
 
   return (
+    <>
     <Box
       flexDirection="column"
       borderStyle="round"
@@ -118,6 +120,10 @@ function CompanionCard({
         <Text dimColor>Press Esc or Enter to close</Text>
       </Box>
     </Box>
+    <Box paddingX={2} marginTop={1} width={CARD_WIDTH}>
+      <Text dimColor italic>{companion.profile}</Text>
+    </Box>
+  </>
   )
 }
 
@@ -132,6 +138,7 @@ type HatchStep =
   | 'hat'
   | 'name'
   | 'personality'
+  | 'generating'
   | 'done'
 
 function ListSelector<T extends string>({
@@ -196,6 +203,37 @@ function TextInput({
         <Text>{value}</Text>
         <Text dimColor>_</Text>
       </Box>
+    </Box>
+  )
+}
+
+function GeneratingProfile({
+  species,
+  personality,
+  onDone,
+}: {
+  species: string
+  personality: string
+  onDone: (profile: string) => void
+}): React.ReactNode {
+  const [dots, setDots] = React.useState('')
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setDots(d => (d.length >= 3 ? '' : d + '.'))
+    }, 400)
+    return () => clearInterval(interval)
+  }, [])
+
+  React.useEffect(() => {
+    void generateCompanionProfile(species, personality).then(onDone)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
+    <Box flexDirection="column">
+      <Text bold>Generating companion profile{dots}</Text>
+      <Text dimColor>This may take a few seconds.</Text>
     </Box>
   )
 }
@@ -335,6 +373,18 @@ function HatchScreen({
         items={PERSONALITIES}
         onSelect={p => {
           setPersonality(p)
+          setStep('generating')
+        }}
+      />
+    )
+  }
+
+  if (step === 'generating') {
+    return (
+      <GeneratingProfile
+        species={species}
+        personality={personality}
+        onDone={profile => {
           const finalStats = getScaledBaseStats(species, rarity)
           const newCompanion: Companion = {
             species,
@@ -343,7 +393,8 @@ function HatchScreen({
             hat,
             shiny,
             name,
-            personality: p,
+            personality,
+            profile,
             stats: finalStats,
             hatchedAt: Date.now(),
           }

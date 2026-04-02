@@ -159,6 +159,7 @@ export type Companion = {
   shiny: boolean
   name: string
   personality: string
+  profile: string
   stats: Record<StatName, number>
   hatchedAt: number
 }
@@ -215,3 +216,4 @@ export const PERSONALITIES = [
   'grumpy',
 ] as const
 export type Personality = (typeof PERSONALITIES)[number]
+

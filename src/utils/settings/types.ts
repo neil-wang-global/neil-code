@@ -1047,6 +1047,7 @@ export const SettingsSchema = lazySchema(() =>
           shiny: z.boolean(),
           name: z.string(),
           personality: z.string(),
+          profile: z.string(),
           stats: z.record(z.string(), z.number()),
           hatchedAt: z.number(),
         })
