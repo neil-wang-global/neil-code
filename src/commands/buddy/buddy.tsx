@@ -4,7 +4,7 @@ import { useSetAppState } from '../../state/AppState.js'
 import { saveGlobalConfig } from '../../utils/config.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import { getCompanion, saveCompanion } from '../../buddy/companion.js'
-import { generateCompanionProfile } from '../../buddy/observer.js'
+import { generateCompanionProfile, chatWithCompanion } from '../../buddy/observer.js'
 import { renderFace, renderSprite } from '../../buddy/sprites.js'
 import {
   EYES,
@@ -425,6 +425,33 @@ function HatchScreen({
 export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   const sub = args.trim().toLowerCase()
 
+  if (sub.startsWith('chat ')) {
+    const content = args.trim().slice(5).trim()
+    if (!content) {
+      onDone('Usage: /buddy chat <message>')
+      return null
+    }
+    const companion = getCompanion()
+    if (!companion) {
+      onDone('No companion yet — try /buddy hatch first!')
+      return null
+    }
+    const ChatAction = (): React.ReactNode => {
+      const setAppState = useSetAppState()
+      React.useEffect(() => {
+        void chatWithCompanion(content).then(reply => {
+          if (reply) {
+            setAppState(prev => ({ ...prev, companionReaction: reply }))
+          }
+          onDone()
+        })
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [])
+      return null
+    }
+    return <ChatAction />
+  }
+
   if (sub === 'pet') {
     const companion = getCompanion()
     if (!companion) {
@@ -472,7 +499,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   }
 
   onDone(
-    `Unknown subcommand: ${sub}. Try: /buddy, /buddy hatch, /buddy pet, /buddy card, /buddy mute, /buddy unmute`,
+    `Unknown subcommand: ${sub}. Try: /buddy, /buddy hatch, /buddy chat <msg>, /buddy pet, /buddy card, /buddy mute, /buddy unmute`,
   )
   return null
 }

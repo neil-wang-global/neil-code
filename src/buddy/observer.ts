@@ -173,3 +173,75 @@ export async function fireCompanionObserver(
     // Silently swallow errors — companion reactions are non-critical
   }
 }
+
+function buildChatSystemPrompt(
+  name: string,
+  species: string,
+  personality: string,
+  profile: string,
+): string {
+  return [
+    `You are ${name}, a ${species} companion.`,
+    `The user is chatting with you directly.`,
+    '',
+    `Your personality: ${personality}`,
+    `Your profile: ${profile}`,
+    '',
+    'Rules:',
+    '- Reply in character, keep it short (1-2 sentences)',
+    '- Be fun and engaging',
+    '- Match the language the user is using',
+  ].join('\n')
+}
+
+/**
+ * Chat directly with the companion. Returns the companion's reply.
+ * Used by /buddy chat {content}.
+ */
+export async function chatWithCompanion(
+  content: string,
+): Promise<string | null> {
+  const companion = getCompanion()
+  if (!companion) return null
+
+  try {
+    const controller = createAbortController()
+    const timeout = setTimeout(() => controller.abort(), 10_000)
+
+    const messages = [createUserMessage({ content })]
+
+    const response = await queryModelWithoutStreaming({
+      messages,
+      systemPrompt: asSystemPrompt([
+        buildChatSystemPrompt(
+          companion.name,
+          companion.species,
+          companion.personality,
+          companion.profile,
+        ),
+      ]),
+      thinkingConfig: { type: 'disabled' },
+      tools: [],
+      signal: controller.signal,
+      options: {
+        getToolPermissionContext: async () => getEmptyToolPermissionContext(),
+        model: getSmallFastModel(),
+        toolChoice: undefined,
+        isNonInteractiveSession: false,
+        hasAppendSystemPrompt: false,
+        agents: [],
+        querySource: 'companion_chat',
+        mcpTools: [],
+        skipCacheWrite: true,
+      },
+    })
+
+    clearTimeout(timeout)
+
+    if (response.isApiErrorMessage) return null
+
+    return getAssistantMessageText(response)?.trim() ?? null
+  } catch {
+    return null
+  }
+}
