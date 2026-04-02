@@ -2478,16 +2478,6 @@ export function REPL({
           };
         });
       },
-      updateAttributionState(updater: (prev: AttributionState) => AttributionState) {
-        setAppState(prev => {
-          const updated = updater(prev.attribution);
-          if (updated === prev.attribution) return prev;
-          return {
-            ...prev,
-            attribution: updated
-          };
-        });
-      },
       openMessageSelector: () => {
         if (!disabled) {
           setIsMessageSelectorVisible(true);
