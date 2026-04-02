@@ -77,7 +77,7 @@ function CompanionCard({
     >
       <Box justifyContent="center">
         <Text bold color={color}>
-          {companion.name} {stars}
+          {companion.name}{stars}
         </Text>
       </Box>
       <Box justifyContent="center">
