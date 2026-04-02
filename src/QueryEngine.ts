@@ -42,7 +42,6 @@ import { SYNTHETIC_OUTPUT_TOOL_NAME } from './tools/SyntheticOutputTool/Syntheti
 import type { Message } from './types/message.js'
 import type { OrphanedPermission } from './types/textInputTypes.js'
 import { createAbortController } from './utils/abortController.js'
-import type { AttributionState } from './utils/commitAttribution.js'
 import { getGlobalConfig } from './utils/config.js'
 import { getCwd } from './utils/cwd.js'
 import { isBareMode, isEnvTruthy } from './utils/envUtils.js'
@@ -382,15 +381,6 @@ export class QueryEngine {
           return { ...prev, fileHistory: updated }
         })
       },
-      updateAttributionState: (
-        updater: (prev: AttributionState) => AttributionState,
-      ) => {
-        setAppState(prev => {
-          const updated = updater(prev.attribution)
-          if (updated === prev.attribution) return prev
-          return { ...prev, attribution: updated }
-        })
-      },
       setSDKStatus,
     }
 
@@ -522,7 +512,6 @@ export class QueryEngine {
       setInProgressToolUseIDs: () => {},
       setResponseLength: () => {},
       updateFileHistoryState: processUserInputContext.updateFileHistoryState,
-      updateAttributionState: processUserInputContext.updateAttributionState,
       setSDKStatus,
     }
 

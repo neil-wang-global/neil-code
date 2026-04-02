@@ -22,10 +22,6 @@ import type { AgentId } from '../types/ids.js'
 import type { Message, UserMessage } from '../types/message.js'
 import type { LoadedPlugin, PluginError } from '../types/plugin.js'
 import type { DeepImmutable } from '../types/utils.js'
-import {
-  type AttributionState,
-  createEmptyAttributionState,
-} from '../utils/commitAttribution.js'
 import type { EffortValue } from '../utils/effort.js'
 import type { FileHistoryState } from '../utils/fileHistory.js'
 import type { REPLHookContext } from '../utils/hooks/postSamplingHooks.js'
@@ -216,7 +212,6 @@ export type AppState = DeepImmutable<{
   }
   agentDefinitions: AgentDefinitionsResult
   fileHistory: FileHistoryState
-  attribution: AttributionState
   todos: { [agentId: string]: TodoList }
   remoteAgentTaskSuggestions: { summary: string; task: string }[]
   notifications: {
@@ -508,7 +503,6 @@ export function getDefaultAppState(): AppState {
       trackedFiles: new Set(),
       snapshotSequence: 0,
     },
-    attribution: createEmptyAttributionState(),
     mcp: {
       clients: [],
       tools: [],

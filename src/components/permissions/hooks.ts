@@ -18,7 +18,6 @@ import {
 import { permissionRuleValueToString } from 'src/utils/permissions/permissionRuleParser.js'
 import { SandboxManager } from 'src/utils/sandbox/sandbox-adapter.js'
 import type { ToolUseConfirm } from '../../components/permissions/PermissionRequest.js'
-import { useSetAppState } from '../../state/AppState.js'
 import { env } from '../../utils/env.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { type CompletionType, logUnaryEvent } from '../../utils/unaryLogging.js'
@@ -102,12 +101,11 @@ export function usePermissionRequestLogging(
   toolUseConfirm: ToolUseConfirm,
   unaryEvent: UnaryEvent,
 ): void {
-  const setAppState = useSetAppState()
   // Guard against effect re-firing if toolUseConfirm's object reference
   // changes during a single dialog's lifetime (e.g., parent re-renders with a
-  // fresh object). Without this, the unconditional setAppState below can
+  // fresh object). Without this, the analytics logging below can
   // cascade into an infinite microtask loop — each re-fire does another
-  // setAppState spread + (ant builds) splitCommand → shell-quote regex,
+  // (ant builds) splitCommand → shell-quote regex,
   // pegging CPU at 100% and leaking ~500MB/min in JSRopeString/RegExp allocs.
   // The component is keyed by toolUseID, so this ref resets on remount —
   // we only need to dedupe re-fires WITHIN one dialog instance.
@@ -118,15 +116,6 @@ export function usePermissionRequestLogging(
       return
     }
     loggedToolUseID.current = toolUseConfirm.toolUseID
-
-    // Increment permission prompt count for attribution tracking
-    setAppState(prev => ({
-      ...prev,
-      attribution: {
-        ...prev.attribution,
-        permissionPromptCount: prev.attribution.permissionPromptCount + 1,
-      },
-    }))
 
     // Log analytics event
     logEvent('tengu_tool_use_show_permission_request', {
@@ -205,5 +194,5 @@ export function usePermissionRequestLogging(
         platform: env.platform,
       },
     })
-  }, [toolUseConfirm, unaryEvent, setAppState])
+  }, [toolUseConfirm, unaryEvent])
 }

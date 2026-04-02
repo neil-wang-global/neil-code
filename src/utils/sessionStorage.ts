@@ -41,7 +41,6 @@ import {
   asSessionId,
   type SessionId,
 } from '../types/ids.js'
-import type { AttributionSnapshotMessage } from '../types/logs.js'
 import {
   type ContentReplacementEntry,
   type ContextCollapseCommitEntry,
@@ -1104,12 +1103,6 @@ class Project {
     })
   }
 
-  async insertAttributionSnapshot(snapshot: AttributionSnapshotMessage) {
-    return this.trackWrite(async () => {
-      await this.appendEntry(snapshot)
-    })
-  }
-
   async insertContentReplacement(
     replacements: ContentReplacementRecord[],
     agentId?: AgentId,
@@ -1185,9 +1178,6 @@ class Project {
       void this.enqueueWrite(sessionFile, entry)
     } else if (entry.type === 'file-history-snapshot') {
       // File history snapshots can always be appended
-      void this.enqueueWrite(sessionFile, entry)
-    } else if (entry.type === 'attribution-snapshot') {
-      // Attribution snapshots can always be appended
       void this.enqueueWrite(sessionFile, entry)
     } else if (entry.type === 'speculation-accept') {
       // Speculation accept entries can always be appended
@@ -1483,12 +1473,6 @@ export async function recordFileHistorySnapshot(
     snapshot,
     isSnapshotUpdate,
   )
-}
-
-export async function recordAttributionSnapshot(
-  snapshot: AttributionSnapshotMessage,
-) {
-  await getProject().insertAttributionSnapshot(snapshot)
 }
 
 export async function recordContentReplacement(
@@ -2272,20 +2256,6 @@ function buildFileHistorySnapshotChain(
 }
 
 /**
- * Builds an attribution snapshot chain from the conversation.
- * Unlike file history snapshots, attribution snapshots are returned in full
- * because they use generated UUIDs (not message UUIDs) and represent
- * cumulative state that should be restored on session resume.
- */
-function buildAttributionSnapshotChain(
-  attributionSnapshots: Map<UUID, AttributionSnapshotMessage>,
-  _conversation: TranscriptMessage[],
-): AttributionSnapshotMessage[] {
-  // Return all attribution snapshots - they will be merged during restore
-  return Array.from(attributionSnapshots.values())
-}
-
-/**
  * Loads a transcript from a JSON or JSONL file and converts it to LogOption format
  * @param filePath Path to the transcript file (.json or .jsonl)
  * @returns LogOption containing the transcript messages
@@ -2301,7 +2271,6 @@ export async function loadTranscriptFromFile(
       customTitles,
       tags,
       fileHistorySnapshots,
-      attributionSnapshots,
       contextCollapseCommits,
       contextCollapseSnapshot,
       leafUuids,
@@ -2338,7 +2307,6 @@ export async function loadTranscriptFromFile(
         buildFileHistorySnapshotChain(fileHistorySnapshots, transcript),
         tag,
         filePath,
-        buildAttributionSnapshotChain(attributionSnapshots, transcript),
         undefined,
         contentReplacements.get(sessionId) ?? [],
       ),
@@ -2484,7 +2452,6 @@ function convertToLogOption(
   fileHistorySnapshots?: FileHistorySnapshot[],
   tag?: string,
   fullPath?: string,
-  attributionSnapshots?: AttributionSnapshotMessage[],
   agentSetting?: string,
   contentReplacements?: ContentReplacementRecord[],
 ): LogOption {
@@ -2516,7 +2483,6 @@ function convertToLogOption(
     customTitle,
     tag,
     fileHistorySnapshots: fileHistorySnapshots,
-    attributionSnapshots: attributionSnapshots,
     contentReplacements,
     gitBranch: lastMessage.gitBranch,
     projectPath: firstMessage.cwd,
@@ -2973,7 +2939,6 @@ export async function loadFullLog(log: LogOption): Promise<LogOption> {
       modes,
       worktreeStates,
       fileHistorySnapshots,
-      attributionSnapshots,
       contentReplacements,
       contextCollapseCommits,
       contextCollapseSnapshot,
@@ -3029,10 +2994,6 @@ export async function loadFullLog(log: LogOption): Promise<LogOption> {
       leafUuid: mostRecentLeaf?.uuid ?? log.leafUuid,
       fileHistorySnapshots: buildFileHistorySnapshotChain(
         fileHistorySnapshots,
-        transcript,
-      ),
-      attributionSnapshots: buildAttributionSnapshotChain(
-        attributionSnapshots,
         transcript,
       ),
       contentReplacements: sessionId
@@ -3467,7 +3428,7 @@ function walkChainBeforeParse(buf: Buffer): Buffer {
 
 /**
  * Loads all messages, summaries, and file history snapshots from a transcript file.
- * Returns the messages, summaries, custom titles, tags, file history snapshots, and attribution snapshots.
+ * Returns the messages, summaries, custom titles, tags, and file history snapshots.
  */
 export async function loadTranscriptFile(
   filePath: string,
@@ -3486,7 +3447,6 @@ export async function loadTranscriptFile(
   modes: Map<UUID, string>
   worktreeStates: Map<UUID, PersistedWorktreeSession | null>
   fileHistorySnapshots: Map<UUID, FileHistorySnapshotMessage>
-  attributionSnapshots: Map<UUID, AttributionSnapshotMessage>
   contentReplacements: Map<UUID, ContentReplacementRecord[]>
   agentContentReplacements: Map<AgentId, ContentReplacementRecord[]>
   contextCollapseCommits: ContextCollapseCommitEntry[]
@@ -3506,7 +3466,6 @@ export async function loadTranscriptFile(
   const modes = new Map<UUID, string>()
   const worktreeStates = new Map<UUID, PersistedWorktreeSession | null>()
   const fileHistorySnapshots = new Map<UUID, FileHistorySnapshotMessage>()
-  const attributionSnapshots = new Map<UUID, AttributionSnapshotMessage>()
   const contentReplacements = new Map<UUID, ContentReplacementRecord[]>()
   const agentContentReplacements = new Map<
     AgentId,
@@ -3519,11 +3478,9 @@ export async function loadTranscriptFile(
 
   try {
     // For large transcripts, avoid materializing megabytes of stale content.
-    // Single forward chunked read: attribution-snapshot lines are skipped at
-    // the fd level (never buffered), compact boundaries truncate the
+    // Single forward chunked read: compact boundaries truncate the
     // accumulator in-stream. Peak allocation is the OUTPUT size, not the
-    // file size — a 151 MB session that is 84% stale attr-snaps allocates
-    // ~32 MB instead of 159+64 MB. This matters because mimalloc does not
+    // file size. This matters because mimalloc does not
     // return those pages to the OS even after JS-level GC frees the backing
     // buffers (measured: arrayBuffers=0 after Bun.gc(true) but RSS stuck at
     // ~316 MB on the old scan+strip path vs ~155 MB here).
@@ -3555,8 +3512,8 @@ export async function loadTranscriptFile(
       }
     }
     buf ??= await readFile(filePath)
-    // For large buffers (which here means readTranscriptForLoad output with
-    // attr-snaps already stripped at the fd level — the <5MB readFile path
+    // For large buffers (which here means readTranscriptForLoad output —
+    // the <5MB readFile path
     // falls through the size gate below), the dominant cost is parsing dead
     // fork branches that buildConversationChain would discard anyway. Skip
     // when the caller needs all
@@ -3677,8 +3634,6 @@ export async function loadTranscriptFile(
         prRepositories.set(entry.sessionId, entry.prRepository)
       } else if (entry.type === 'file-history-snapshot') {
         fileHistorySnapshots.set(entry.messageId, entry)
-      } else if (entry.type === 'attribution-snapshot') {
-        attributionSnapshots.set(entry.messageId, entry)
       } else if (entry.type === 'content-replacement') {
         // Subagent decisions key by agentId (sidechain resume); main-thread
         // decisions key by sessionId (/resume).
@@ -3803,7 +3758,6 @@ export async function loadTranscriptFile(
     modes,
     worktreeStates,
     fileHistorySnapshots,
-    attributionSnapshots,
     contentReplacements,
     agentContentReplacements,
     contextCollapseCommits,
@@ -3813,7 +3767,7 @@ export async function loadTranscriptFile(
 }
 
 /**
- * Loads all messages, summaries, file history snapshots, and attribution snapshots from a specific session file.
+ * Loads all messages, summaries, and file history snapshots from a specific session file.
  */
 async function loadSessionFile(sessionId: UUID): Promise<{
   messages: Map<UUID, TranscriptMessage>
@@ -3823,7 +3777,6 @@ async function loadSessionFile(sessionId: UUID): Promise<{
   agentSettings: Map<UUID, string>
   worktreeStates: Map<UUID, PersistedWorktreeSession | null>
   fileHistorySnapshots: Map<UUID, FileHistorySnapshotMessage>
-  attributionSnapshots: Map<UUID, AttributionSnapshotMessage>
   contentReplacements: Map<UUID, ContentReplacementRecord[]>
   contextCollapseCommits: ContextCollapseCommitEntry[]
   contextCollapseSnapshot: ContextCollapseSnapshotEntry | undefined
@@ -3878,7 +3831,6 @@ export async function getLastSessionLog(
     agentSettings,
     worktreeStates,
     fileHistorySnapshots,
-    attributionSnapshots,
     contentReplacements,
     contextCollapseCommits,
     contextCollapseSnapshot,
@@ -3916,7 +3868,6 @@ export async function getLastSessionLog(
       buildFileHistorySnapshotChain(fileHistorySnapshots, transcript),
       tag,
       getTranscriptPathForSession(sessionId),
-      buildAttributionSnapshotChain(attributionSnapshots, transcript),
       agentSetting,
       contentReplacements.get(sessionId) ?? [],
     ),
@@ -4612,7 +4563,6 @@ export async function loadAllLogsFromSessionFile(
     prRepositories,
     modes,
     fileHistorySnapshots,
-    attributionSnapshots,
     contentReplacements,
     leafUuids,
   } = await loadTranscriptFile(sessionFile, { keepAllLeaves: true })
@@ -4680,10 +4630,6 @@ export async function loadAllLogsFromSessionFile(
       projectPath: projectPathOverride ?? firstMessage.cwd,
       fileHistorySnapshots: buildFileHistorySnapshotChain(
         fileHistorySnapshots,
-        chain,
-      ),
-      attributionSnapshots: buildAttributionSnapshotChain(
-        attributionSnapshots,
         chain,
       ),
       contentReplacements: contentReplacements.get(sessionId) ?? [],

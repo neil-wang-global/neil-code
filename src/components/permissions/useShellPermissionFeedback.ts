@@ -4,7 +4,6 @@ import {
   logEvent,
 } from '../../services/analytics/index.js'
 import { sanitizeToolNameForAnalytics } from '../../services/analytics/metadata.js'
-import { useSetAppState } from '../../state/AppState.js'
 import type { ToolUseConfirm } from './PermissionRequest.js'
 import { logUnaryPermissionEvent } from './utils.js'
 
@@ -37,7 +36,6 @@ export function useShellPermissionFeedback({
   handleReject: (feedback?: string) => void
   handleFocus: (value: string) => void
 } {
-  const setAppState = useSetAppState()
   const [rejectFeedback, setRejectFeedback] = useState('')
   const [acceptFeedback, setAcceptFeedback] = useState('')
   const [yesInputMode, setYesInputMode] = useState(false)
@@ -88,14 +86,6 @@ export function useShellPermissionFeedback({
       logEvent('tengu_permission_request_escape', {
         explainer_visible: explainerVisible,
       })
-      // Increment escape count for attribution tracking
-      setAppState(prev => ({
-        ...prev,
-        attribution: {
-          ...prev.attribution,
-          escapeCount: prev.attribution.escapeCount + 1,
-        },
-      }))
     }
 
     logUnaryPermissionEvent(

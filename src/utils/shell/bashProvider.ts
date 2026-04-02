@@ -128,20 +128,6 @@ export async function createBashShellProvider(
       const addStdinRedirect = shouldAddStdinRedirect(normalizedCommand)
       let quotedCommand = quoteShellCommand(normalizedCommand, addStdinRedirect)
 
-      // Debug logging for heredoc/multiline commands to trace trailer handling
-      // Only log when commit attribution is enabled to avoid noise
-      if (
-        feature('COMMIT_ATTRIBUTION') &&
-        (command.includes('<<') || command.includes('\n'))
-      ) {
-        logForDebugging(
-          `Shell: Command before quoting (first 500 chars):\n${command.slice(0, 500)}`,
-        )
-        logForDebugging(
-          `Shell: Quoted command (first 500 chars):\n${quotedCommand.slice(0, 500)}`,
-        )
-      }
-
       // Special handling for pipes: move stdin redirect after first command
       // This ensures the redirect applies to the first command, not to eval itself.
       // Without this, `eval 'rg foo | wc -l' \< /dev/null` becomes

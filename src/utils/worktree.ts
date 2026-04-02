@@ -600,27 +600,6 @@ async function performPostCreationSetup(
   // the absolute core.hooksPath we just set above (main repo's .husky),
   // not the worktree's — `git rev-parse --git-path hooks` echoes the config
   // value verbatim when it's absolute.
-  if (feature('COMMIT_ATTRIBUTION')) {
-    const worktreeHooksDir =
-      hooksPath === huskyPath ? join(worktreePath, '.husky') : undefined
-    void import('./postCommitAttribution.js')
-      .then(m =>
-        m
-          .installPrepareCommitMsgHook(worktreePath, worktreeHooksDir)
-          .catch(error => {
-            logForDebugging(
-              `Failed to install attribution hook in worktree: ${error}`,
-            )
-          }),
-      )
-      .catch(error => {
-        // Dynamic import() itself rejected (module load failure). The inner
-        // .catch above only handles installPrepareCommitMsgHook rejection —
-        // without this outer handler an import failure would surface as an
-        // unhandled promise rejection.
-        logForDebugging(`Failed to load postCommitAttribution module: ${error}`)
-      })
-  }
 }
 
 /**

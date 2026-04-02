@@ -130,7 +130,6 @@ export async function startMCPServer(
         setInProgressToolUseIDs: () => {},
         setResponseLength: () => {},
         updateFileHistoryState: () => {},
-        updateAttributionState: () => {},
       }
 
       // TODO: validate input types with zod

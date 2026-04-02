@@ -208,26 +208,6 @@ async function processSessionFiles(
       // their token usage counted, but not as separate sessions.
       const isSubagentFile = sessionFile.includes(`${sep}subagents${sep}`)
 
-      // Extract shot count from PR attribution in gh pr create calls (ant-only)
-      // This must run before the sidechain filter since subagent transcripts
-      // mark all messages as sidechain
-      if (feature('SHOT_STATS') && shotDistributionMap) {
-        const parentSessionId = isSubagentFile
-          ? basename(dirname(dirname(sessionFile)))
-          : sessionId
-
-        if (!sessionsWithShotCount.has(parentSessionId)) {
-          const shotCount = extractShotCountFromMessages(messages)
-          if (shotCount !== null) {
-            sessionsWithShotCount.add(parentSessionId)
-            shotDistributionMap.set(
-              shotCount,
-              (shotDistributionMap.get(shotCount) || 0) + 1,
-            )
-          }
-        }
-      }
-
       // Filter out sidechain messages for session metadata (duration, counts).
       // For subagent files, use all messages since they're all sidechain.
       const mainMessages = isSubagentFile
@@ -930,40 +910,6 @@ function calculateStreaks(dailyActivity: DailyActivity[]): StreakInfo {
   }
 }
 
-const SHOT_COUNT_REGEX = /(\d+)-shotted by/
-
-/**
- * Extract the shot count from PR attribution text in a `gh pr create` Bash call.
- * The attribution format is: "N-shotted by model-name"
- * Returns the shot count, or null if not found.
- */
-function extractShotCountFromMessages(
-  messages: TranscriptMessage[],
-): number | null {
-  for (const m of messages) {
-    if (m.type !== 'assistant') continue
-    const content = m.message?.content
-    if (!Array.isArray(content)) continue
-    for (const block of content) {
-      if (
-        block.type !== 'tool_use' ||
-        !SHELL_TOOL_NAMES.includes(block.name) ||
-        typeof block.input !== 'object' ||
-        block.input === null ||
-        !('command' in block.input) ||
-        typeof block.input.command !== 'string'
-      ) {
-        continue
-      }
-      const match = SHOT_COUNT_REGEX.exec(block.input.command)
-      if (match) {
-        return parseInt(match[1]!, 10)
-      }
-    }
-  }
-  return null
-}
-
 // Transcript message types — must match isTranscriptMessage() in sessionStorage.ts.
 // The canonical dateKey (see processSessionFiles) reads mainMessages[0].timestamp,
 // where mainMessages = entries.filter(isTranscriptMessage).filter(!isSidechain).
@@ -981,7 +927,7 @@ const TRANSCRIPT_MESSAGE_TYPES = new Set([
  * Uses a small 4 KB read to avoid loading the full file.
  *
  * Session files typically begin with non-transcript entries (`mode`,
- * `file-history-snapshot`, `attribution-snapshot`) before the first transcript
+ * `file-history-snapshot`) before the first transcript
  * message, so we scan lines until we hit one. Each complete line is JSON-parsed
  * — naive string search is unsafe here because `file-history-snapshot` entries
  * embed a nested `snapshot.timestamp` carrying the *previous* session's date
