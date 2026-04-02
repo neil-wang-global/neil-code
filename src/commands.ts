@@ -115,12 +115,8 @@ const forkCmd = feature('FORK_SUBAGENT')
       require('./commands/fork/index.js') as typeof import('./commands/fork/index.js')
     ).default
   : null
-const buddy = feature('BUDDY')
-  ? (
-      require('./commands/buddy/index.js') as typeof import('./commands/buddy/index.js')
-    ).default
-  : null
 /* eslint-enable @typescript-eslint/no-require-imports */
+import buddy from './commands/buddy/index.js'
 import thinkback from './commands/thinkback/index.js'
 import thinkbackPlay from './commands/thinkback-play/index.js'
 import permissions from './commands/permissions/index.js'
@@ -319,7 +315,7 @@ const COMMANDS = memoize((): Command[] => [
   vim,
   ...(webCmd ? [webCmd] : []),
   ...(forkCmd ? [forkCmd] : []),
-  ...(buddy ? [buddy] : []),
+  buddy,
   ...(proactive ? [proactive] : []),
   ...(briefCommand ? [briefCommand] : []),
   ...(assistantCommand ? [assistantCommand] : []),
@@ -547,15 +543,12 @@ export function clearCommandsCache(): void {
 export function getMcpSkillCommands(
   mcpCommands: readonly Command[],
 ): readonly Command[] {
-  if (feature('MCP_SKILLS')) {
-    return mcpCommands.filter(
-      cmd =>
-        cmd.type === 'prompt' &&
-        cmd.loadedFrom === 'mcp' &&
-        !cmd.disableModelInvocation,
-    )
-  }
-  return []
+  return mcpCommands.filter(
+    cmd =>
+      cmd.type === 'prompt' &&
+      cmd.loadedFrom === 'mcp' &&
+      !cmd.disableModelInvocation,
+  )
 }
 
 // SkillTool shows ALL prompt-based commands that the model can invoke

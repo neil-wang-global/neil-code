@@ -861,13 +861,9 @@ export async function getAttachments(
         ),
       ),
     ),
-    ...(feature('BUDDY')
-      ? [
-          maybe('companion_intro', () =>
-            Promise.resolve(getCompanionIntroAttachment(messages)),
-          ),
-        ]
-      : []),
+    maybe('companion_intro', () =>
+      Promise.resolve(getCompanionIntroAttachment(messages)),
+    ),
     maybe('changed_files', () => getChangedFiles(context)),
     maybe('nested_memory', () => getNestedMemoryAttachments(context)),
     // relevant_memories moved to async prefetch (startRelevantMemoryPrefetch)
@@ -3826,21 +3822,18 @@ function getTokenUsageAttachment(
 }
 
 function getOutputTokenUsageAttachment(): Attachment[] {
-  if (feature('TOKEN_BUDGET')) {
-    const budget = getCurrentTurnTokenBudget()
-    if (budget === null || budget <= 0) {
-      return []
-    }
-    return [
-      {
-        type: 'output_token_usage',
-        turn: getTurnOutputTokens(),
-        session: getTotalOutputTokens(),
-        budget,
-      },
-    ]
+  const budget = getCurrentTurnTokenBudget()
+  if (budget === null || budget <= 0) {
+    return []
   }
-  return []
+  return [
+    {
+      type: 'output_token_usage',
+      turn: getTurnOutputTokens(),
+      session: getTotalOutputTokens(),
+      budget,
+    },
+  ]
 }
 
 function getMaxBudgetUsdAttachment(maxBudgetUsd?: number): Attachment[] {
