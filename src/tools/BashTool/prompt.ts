@@ -1,6 +1,5 @@
 import { feature } from 'bun:bundle'
 import { prependBullets } from '../../constants/prompts.js'
-import { getAttributionTexts } from '../../utils/attribution.js'
 import { hasEmbeddedSearchTools } from '../../utils/embeddedTools.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { shouldIncludeGitInstructions } from '../../utils/gitSettings.js'
@@ -75,9 +74,6 @@ Use the gh command via the Bash tool for other GitHub-related tasks including wo
 - View comments on a Github PR: gh api repos/foo/bar/pulls/123/comments`
   }
 
-  // For external users, include full inline instructions
-  const { commit: commitAttribution, pr: prAttribution } = getAttributionTexts()
-
   return `# Committing changes with git
 
 Only create commits when requested by the user. If unclear, ask first. When the user asks you to create a new git commit, follow these steps carefully:
@@ -86,7 +82,7 @@ You can call multiple tools in a single response. When multiple independent piec
 
 Git Safety Protocol:
 - NEVER update the git config
-- NEVER run destructive git commands (push --force, reset --hard, checkout ., restore ., clean -f, branch -D) unless the user explicitly requests these actions. Taking unauthorized destructive actions is unhelpful and can result in lost work, so it's best to ONLY run these commands when given direct instructions 
+- NEVER run destructive git commands (push --force, reset --hard, checkout ., restore ., clean -f, branch -D) unless the user explicitly requests these actions. Taking unauthorized destructive actions is unhelpful and can result in lost work, so it's best to ONLY run these commands when given direct instructions
 - NEVER skip hooks (--no-verify, --no-gpg-sign, etc) unless the user explicitly requests it
 - NEVER run force push to main/master, warn the user if they request it
 - CRITICAL: Always create NEW commits rather than amending, unless the user explicitly requests a git amend. When a pre-commit hook fails, the commit did NOT happen — so --amend would modify the PREVIOUS commit, which may result in destroying work or losing previous changes. Instead, after hook failure, fix the issue, re-stage, and create a NEW commit
@@ -104,7 +100,7 @@ Git Safety Protocol:
   - Ensure it accurately reflects the changes and their purpose
 3. Run the following commands in parallel:
    - Add relevant untracked files to the staging area.
-   - Create the commit with a message${commitAttribution ? ` ending with:\n   ${commitAttribution}` : '.'}
+   - Create the commit with a message.
    - Run git status after the commit completes to verify success.
    Note: git status depends on the commit completing, so run it sequentially after the commit.
 4. If the commit fails due to pre-commit hook: fix the issue and create a NEW commit
@@ -119,7 +115,7 @@ Important notes:
 - In order to ensure good formatting, ALWAYS pass the commit message via a HEREDOC, a la this example:
 <example>
 git commit -m "$(cat <<'EOF'
-   Commit message here.${commitAttribution ? `\n\n   ${commitAttribution}` : ''}
+   Commit message here.
    EOF
    )"
 </example>
@@ -147,7 +143,7 @@ gh pr create --title "the pr title" --body "$(cat <<'EOF'
 <1-3 bullet points>
 
 ## Test plan
-[Bulleted markdown checklist of TODOs for testing the pull request...]${prAttribution ? `\n\n${prAttribution}` : ''}
+[Bulleted markdown checklist of TODOs for testing the pull request...]
 EOF
 )"
 </example>
