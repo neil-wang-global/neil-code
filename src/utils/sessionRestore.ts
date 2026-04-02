@@ -58,7 +58,6 @@ import {
 type ResumeResult = {
   messages?: Message[]
   fileHistorySnapshots?: FileHistorySnapshot[]
-  attributionSnapshots?: AttributionSnapshotMessage[]
   contextCollapseCommits?: ContextCollapseCommitEntry[]
   contextCollapseSnapshot?: ContextCollapseSnapshotEntry
 }
@@ -262,7 +261,6 @@ type CoordinatorModeApi = {
 type ResumeLoadResult = {
   messages: Message[]
   fileHistorySnapshots?: FileHistorySnapshot[]
-  attributionSnapshots?: AttributionSnapshotMessage[]
   contentReplacements?: ContentReplacementRecord[]
   contextCollapseCommits?: ContextCollapseCommitEntry[]
   contextCollapseSnapshot?: ContextCollapseSnapshotEntry
