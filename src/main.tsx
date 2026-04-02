@@ -3124,7 +3124,6 @@ async function run(): Promise<CommanderCommand> {
         }
         const loaded = await processResumedConversation(result, {
           forkSession: !!options.forkSession,
-          includeAttribution: true,
           transcriptPath: result.fullPath
         }, resumeContext);
         if (loaded.restoredAgentDef) {

@@ -22,7 +22,6 @@ import {
 import { TODO_WRITE_TOOL_NAME } from '../tools/TodoWriteTool/constants.js'
 import { asSessionId } from '../types/ids.js'
 import type {
-  AttributionSnapshotMessage,
   ContextCollapseCommitEntry,
   ContextCollapseSnapshotEntry,
   PersistedWorktreeSession,
@@ -30,11 +29,6 @@ import type {
 import type { Message } from '../types/message.js'
 import { renameRecordingForSession } from './asciicast.js'
 import { clearMemoryFileCaches } from './claudemd.js'
-import {
-  type AttributionState,
-  attributionRestoreStateFromLog,
-  restoreAttributionStateFromSnapshots,
-} from './commitAttribution.js'
 import { updateSessionName } from './concurrentSessions.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
@@ -107,17 +101,6 @@ export function restoreSessionStateFromLog(
     })
   }
 
-  // Restore attribution state (ant-only feature)
-  if (
-    feature('COMMIT_ATTRIBUTION') &&
-    result.attributionSnapshots &&
-    result.attributionSnapshots.length > 0
-  ) {
-    attributionRestoreStateFromLog(result.attributionSnapshots, newState => {
-      setAppState(prev => ({ ...prev, attribution: newState }))
-    })
-  }
-
   // Restore context-collapse commit log + staged snapshot. Must run before
   // the first query() so projectView() can rebuild the collapsed view from
   // the resumed Message[]. Called unconditionally (even with
@@ -147,24 +130,6 @@ export function restoreSessionStateFromLog(
       }))
     }
   }
-}
-
-/**
- * Compute restored attribution state from log snapshots.
- * Used for computing initial state before render (e.g., main.tsx --continue).
- * Returns undefined if attribution feature is disabled or no snapshots exist.
- */
-export function computeRestoredAttributionState(
-  result: ResumeResult,
-): AttributionState | undefined {
-  if (
-    feature('COMMIT_ATTRIBUTION') &&
-    result.attributionSnapshots &&
-    result.attributionSnapshots.length > 0
-  ) {
-    return restoreAttributionStateFromSnapshots(result.attributionSnapshots)
-  }
-  return undefined
 }
 
 /**
@@ -412,7 +377,6 @@ export async function processResumedConversation(
     forkSession: boolean
     sessionIdOverride?: string
     transcriptPath?: string
-    includeAttribution?: boolean
   },
   context: {
     modeApi: CoordinatorModeApi | null
@@ -516,9 +480,6 @@ export async function processResumedConversation(
   }
 
   // Compute initial state before render (per CLAUDE.md guidelines)
-  const restoredAttribution = opts.includeAttribution
-    ? computeRestoredAttributionState(result)
-    : undefined
   const standaloneAgentContext = computeStandaloneAgentContext(
     result.agentName,
     result.agentColor,
@@ -543,7 +504,6 @@ export async function processResumedConversation(
     initialState: {
       ...context.initialState,
       ...(resumedAgentType && { agent: resumedAgentType }),
-      ...(restoredAttribution && { attribution: restoredAttribution }),
       ...(standaloneAgentContext && { standaloneAgentContext }),
       agentDefinitions: refreshedAgentDefs,
     },
