@@ -512,7 +512,6 @@ export class QueryEngine {
       setInProgressToolUseIDs: () => {},
       setResponseLength: () => {},
       updateFileHistoryState: processUserInputContext.updateFileHistoryState,
-      updateAttributionState: processUserInputContext.updateAttributionState,
       setSDKStatus,
     }
 

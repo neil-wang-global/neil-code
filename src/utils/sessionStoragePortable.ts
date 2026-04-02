@@ -511,13 +511,9 @@ function parseBoundaryLine(
 }
 
 /**
- * Single forward chunked read for the --resume load path. Attr-snap lines
- * are skipped at the fd level; compact boundaries truncate in-stream. Peak
- * is the output size, not the file size.
- *
- * The surviving (last) attr-snap is appended at EOF instead of in-place;
- * restoreAttributionStateFromSnapshots only reads [length-1] so position
- * doesn't matter.
+ * Single forward chunked read for the --resume load path. Compact
+ * boundaries truncate in-stream. Peak is the output size, not the
+ * file size.
  */
 
 type Sink = { buf: Buffer; len: number; cap: number }

@@ -9,7 +9,7 @@
  * Activation:
  *   - CLAUDE_CODE_UNDERCOVER=1 — force ON (even in internal repos)
  *   - Otherwise AUTO: active UNLESS the repo remote matches the internal
- *     allowlist (INTERNAL_MODEL_REPOS in commitAttribution.ts). Safe default
+ *     allowlist (INTERNAL_MODEL_REPOS in repoClassification.ts). Safe default
  *     is ON — Claude may push to public remotes from a CWD that isn't itself
  *     a git checkout (e.g. /tmp crash repro).
  *   - There is NO force-OFF. This guards against model codename leaks — if

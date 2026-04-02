@@ -331,7 +331,7 @@ export function groupHooksByEventAndMatcher(
         const matcherKey = matcher.matcher || ''
 
         // Only PluginHookMatcher has pluginRoot; HookCallbackMatcher (internal
-        // callbacks like attributionHooks, sessionFileAccessHooks) does not.
+        // callbacks like sessionFileAccessHooks) does not.
         if ('pluginRoot' in matcher) {
           eventGroup[matcherKey] ??= []
           for (const hook of matcher.hooks) {

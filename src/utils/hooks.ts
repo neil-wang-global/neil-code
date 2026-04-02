@@ -1719,7 +1719,7 @@ export async function getMatchingHooks(
     // Fast-path: callback/function hooks don't need dedup (each is unique).
     // Skip the 6-pass filter + 4×Map + 4×Array.from below when all hooks are
     // callback/function — the common case for internal hooks like
-    // sessionFileAccessHooks/attributionHooks (44x faster in microbench).
+    // sessionFileAccessHooks (44x faster in microbench).
     if (
       matchedHooks.every(
         m => m.hook.type === 'callback' || m.hook.type === 'function',
@@ -2034,8 +2034,8 @@ async function* executeHooks({
       }),
     })
   } else {
-    // Fast-path: all hooks are internal callbacks (sessionFileAccessHooks,
-    // attributionHooks). These return {} and don't use the abort signal, so we
+    // Fast-path: all hooks are internal callbacks (sessionFileAccessHooks).
+    // These return {} and don't use the abort signal, so we
     // can skip span/progress/abortSignal/processHookJSONOutput/resultLoop.
     // Measured: 6.01µs → ~1.8µs per PostToolUse hit (-70%).
     const batchStartTime = Date.now()
