@@ -543,15 +543,12 @@ export function clearCommandsCache(): void {
 export function getMcpSkillCommands(
   mcpCommands: readonly Command[],
 ): readonly Command[] {
-  if (feature('MCP_SKILLS')) {
-    return mcpCommands.filter(
-      cmd =>
-        cmd.type === 'prompt' &&
-        cmd.loadedFrom === 'mcp' &&
-        !cmd.disableModelInvocation,
-    )
-  }
-  return []
+  return mcpCommands.filter(
+    cmd =>
+      cmd.type === 'prompt' &&
+      cmd.loadedFrom === 'mcp' &&
+      !cmd.disableModelInvocation,
+  )
 }
 
 // SkillTool shows ALL prompt-based commands that the model can invoke
