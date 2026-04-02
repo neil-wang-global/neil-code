@@ -56,14 +56,14 @@ function SpeechBubble(t0) {
   let t5;
   let t6;
   if ($[0] !== color || $[1] !== fading || $[2] !== text) {
-    const lines = wrap(text, 30);
+    const lines = wrap(text, 40);
     borderColor = fading ? "inactive" : color;
     T0 = Box;
     t1 = "column";
     t2 = "round";
     t3 = borderColor;
     t4 = 1;
-    t5 = 34;
+    t5 = 44;
     let t7;
     if ($[11] !== fading) {
       t7 = (l, i) => <Text key={i} italic={true} dimColor={!fading} color={fading ? "inactive" : undefined}>{l}</Text>;
@@ -152,8 +152,8 @@ export const MIN_COLS_FOR_FULL_SPRITE = 100;
 const SPRITE_BODY_WIDTH = 12;
 const NAME_ROW_PAD = 2; // focused state wraps name in spaces: ` name `
 const SPRITE_PADDING_X = 2;
-const BUBBLE_WIDTH = 36; // SpeechBubble box (34) + tail column
-const NARROW_QUIP_CAP = 24;
+const BUBBLE_WIDTH = 46; // SpeechBubble box (44) + tail column
+const NARROW_QUIP_CAP = 36;
 function spriteColWidth(nameWidth: number): number {
   return Math.max(SPRITE_BODY_WIDTH, nameWidth + NAME_ROW_PAD);
 }

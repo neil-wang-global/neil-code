@@ -1,4 +1,7 @@
-import type { CompanionBones, Eye, Hat, Species } from './types.js'
+import type { Eye, Hat, Species } from './types.js'
+
+// Minimal shape needed by render functions — works with both full Companion and partial data during hatch
+type SpriteInput = { species: Species; eye: Eye; hat: Hat }
 import {
   axolotl,
   blob,
@@ -451,7 +454,7 @@ const HAT_LINES: Record<Hat, string> = {
   tinyduck: '    ,>      ',
 }
 
-export function renderSprite(bones: CompanionBones, frame = 0): string[] {
+export function renderSprite(bones: SpriteInput, frame = 0): string[] {
   const frames = BODIES[bones.species]
   const body = frames[frame % frames.length]!.map(line =>
     line.replaceAll('{E}', bones.eye),
@@ -472,7 +475,7 @@ export function spriteFrameCount(species: Species): number {
   return BODIES[species].length
 }
 
-export function renderFace(bones: CompanionBones): string {
+export function renderFace(bones: SpriteInput): string {
   const eye: Eye = bones.eye
   switch (bones.species) {
     case duck:

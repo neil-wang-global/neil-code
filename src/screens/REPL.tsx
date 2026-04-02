@@ -273,6 +273,8 @@ const WebBrowserPanelModule = feature('WEB_BROWSER_TOOL') ? require('../tools/We
 import { IssueFlagBanner } from '../components/PromptInput/IssueFlagBanner.js';
 import { useIssueFlagBanner } from '../hooks/useIssueFlagBanner.js';
 import { CompanionSprite, CompanionFloatingBubble, MIN_COLS_FOR_FULL_SPRITE } from '../buddy/CompanionSprite.js';
+import { fireCompanionObserver } from '../buddy/observer.js';
+import { tryBuddyStatGrowth } from '../buddy/growth.js';
 import { DevBar } from '../components/DevBar.js';
 // Session manager removed - using AppState now
 import type { RemoteSessionConfig } from '../remote/RemoteSessionManager.js';
@@ -2831,6 +2833,16 @@ export function REPL({
       ...prev,
       companionReaction: reaction
     }));
+    // Buddy stat growth — 15% chance per turn
+    const growthResult = tryBuddyStatGrowth()
+    if (growthResult) {
+      addNotification({
+        key: 'buddy-stat-growth',
+        jsx: <Text bold color="warning">{`\u{1F389} ${growthResult.companionName} \u7684 ${growthResult.stat} +1\uFF01(${growthResult.oldValue} \u2192 ${growthResult.newValue})`}</Text>,
+        priority: 'immediate' as const,
+        timeoutMs: 8000,
+      })
+    }
     queryCheckpoint('query_end');
 
     // Capture ant-only API metrics before resetLoadingState clears the ref.

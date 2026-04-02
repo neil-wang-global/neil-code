@@ -1,19 +1,29 @@
 import * as React from 'react'
 import { Box, Text, useInput } from '../../ink.js'
 import { useSetAppState } from '../../state/AppState.js'
-import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
+import { saveGlobalConfig } from '../../utils/config.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
+import { getCompanion, saveCompanion } from '../../buddy/companion.js'
+import { generateCompanionProfile, chatWithCompanion } from '../../buddy/observer.js'
+import { renderFace, renderSprite } from '../../buddy/sprites.js'
 import {
-  getCompanion,
-  companionUserId,
-  roll,
-} from '../../buddy/companion.js'
-import { renderSprite } from '../../buddy/sprites.js'
-import {
+  EYES,
+  HATS,
+  PERSONALITIES,
+  RARITIES,
   RARITY_COLORS,
+  RARITY_MULTIPLIERS,
   RARITY_STARS,
+  SPECIES,
+  SPECIES_DESCRIPTIONS,
   STAT_NAMES,
   type Companion,
+  type Eye,
+  type Hat,
+  type Personality,
+  type Rarity,
+  type Species,
+  getScaledBaseStats,
 } from '../../buddy/types.js'
 
 // ── Card ──────────────────────────────────────────────────────────────
@@ -58,11 +68,8 @@ function CompanionCard({
     }
   })
 
-  const shinyTag = companion.shiny ? ' [SHINY]' : ''
-  const title = ` ${companion.name} `
-  const subtitle = `${companion.species}${shinyTag}`
-
   return (
+    <>
     <Box
       flexDirection="column"
       borderStyle="round"
@@ -71,18 +78,15 @@ function CompanionCard({
       paddingY={1}
       width={CARD_WIDTH}
     >
-      {/* Header */}
-      <Box justifyContent="center">
+      <Box justifyContent="space-between">
         <Text bold color={color}>
-          {title}
+          {companion.name}{stars}
         </Text>
+        <Text dimColor>{companion.species.toUpperCase()}</Text>
       </Box>
       <Box justifyContent="center">
-        <Text color={color}>{stars}</Text>
-        <Text dimColor> {companion.rarity}{shinyTag}</Text>
+        <Text dimColor>{companion.shiny ? `✨ ${companion.rarity} ✨` : companion.rarity}</Text>
       </Box>
-
-      {/* Sprite */}
       <Box flexDirection="column" alignItems="center" marginTop={1}>
         {sprite.map((line, i) => (
           <Text key={i} color={color}>
@@ -90,14 +94,9 @@ function CompanionCard({
           </Text>
         ))}
       </Box>
-
-      {/* Species + personality */}
       <Box flexDirection="column" alignItems="center" marginTop={1}>
-        <Text dimColor>{subtitle}</Text>
-        <Text dimColor italic>"{companion.personality}"</Text>
+        <Text dimColor italic>"{SPECIES_DESCRIPTIONS[companion.species]}"</Text>
       </Box>
-
-      {/* Stats */}
       <Box
         flexDirection="column"
         marginTop={1}
@@ -117,78 +116,389 @@ function CompanionCard({
           />
         ))}
       </Box>
-
-      {/* Footer hint */}
       <Box justifyContent="center" marginTop={1}>
         <Text dimColor>Press Esc or Enter to close</Text>
+      </Box>
+    </Box>
+    <Box paddingX={2} marginTop={1}>
+      <Text dimColor italic>{companion.profile}</Text>
+    </Box>
+  </>
+  )
+}
+
+// ── Hatch steps ──────────────────────────────────────────────────────
+
+type HatchStep =
+  | 'confirm'
+  | 'species'
+  | 'rarity'
+  | 'shiny'
+  | 'eye'
+  | 'hat'
+  | 'name'
+  | 'personality'
+  | 'imagine'
+  | 'generating'
+  | 'done'
+
+function ListSelector<T extends string>({
+  items,
+  labels,
+  onSelect,
+  title,
+}: {
+  items: readonly T[]
+  labels?: (item: T, index: number) => string
+  onSelect: (item: T) => void
+  title: string
+}): React.ReactNode {
+  const [index, setIndex] = React.useState(0)
+
+  useInput((_input, key) => {
+    if (key.upArrow) setIndex(i => Math.max(0, i - 1))
+    else if (key.downArrow) setIndex(i => Math.min(items.length - 1, i + 1))
+    else if (key.return) onSelect(items[index]!)
+  })
+
+  return (
+    <Box flexDirection="column">
+      <Text bold>{title}</Text>
+      <Text dimColor>(↑↓ to navigate, Enter to select)</Text>
+      <Box flexDirection="column" marginTop={1}>
+        {items.map((item, i) => (
+          <Text key={item}>
+            {i === index ? '▸ ' : '  '}
+            {labels ? labels(item, i) : item}
+          </Text>
+        ))}
       </Box>
     </Box>
   )
 }
 
-// ── Hatch ─────────────────────────────────────────────────────────────
+function TextInput({
+  title,
+  onSubmit,
+}: {
+  title: string
+  onSubmit: (value: string) => void
+}): React.ReactNode {
+  const [value, setValue] = React.useState('')
+
+  useInput((input, key) => {
+    if (key.return && value.trim()) {
+      onSubmit(value.trim())
+    } else if (key.backspace || key.delete) {
+      setValue(v => v.slice(0, -1))
+    } else if (input && !key.ctrl && !key.meta) {
+      setValue(v => v + input)
+    }
+  })
+
+  return (
+    <Box flexDirection="column">
+      <Text bold>{title}</Text>
+      <Box marginTop={1}>
+        <Text>{'> '}</Text>
+        <Text>{value}</Text>
+        <Text dimColor>_</Text>
+      </Box>
+    </Box>
+  )
+}
+
+function ImagineInput({
+  onSubmit,
+}: {
+  onSubmit: (value: string) => void
+}): React.ReactNode {
+  const [value, setValue] = React.useState('')
+
+  useInput((input, key) => {
+    if (key.return) {
+      onSubmit(value.trim())
+    } else if (key.backspace || key.delete) {
+      setValue(v => v.slice(0, -1))
+    } else if (input && !key.ctrl && !key.meta) {
+      setValue(v => v + input)
+    }
+  })
+
+  return (
+    <Box flexDirection="column">
+      <Text bold>Describe your companion — what do you imagine it looks like?</Text>
+      <Text dimColor>This shapes its personality profile. Press Enter to skip.</Text>
+      <Box marginTop={1}>
+        <Text>{'> '}</Text>
+        <Text>{value}</Text>
+        <Text dimColor>_</Text>
+      </Box>
+    </Box>
+  )
+}
+
+const SPINNER_FRAMES = ['◐', '◓', '◑', '◒']
+
+function GeneratingProfile({
+  species,
+  personality,
+  userImagine,
+  onDone,
+}: {
+  species: string
+  personality: string
+  userImagine: string
+  onDone: (profile: string) => void
+}): React.ReactNode {
+  const [frame, setFrame] = React.useState(0)
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setFrame(f => (f + 1) % SPINNER_FRAMES.length)
+    }, 120)
+    return () => clearInterval(interval)
+  }, [])
+
+  React.useEffect(() => {
+    void generateCompanionProfile(species, personality, userImagine || undefined).then(onDone)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
+    <Box flexDirection="column">
+      <Text bold>{SPINNER_FRAMES[frame]} 同伴正在出生...</Text>
+    </Box>
+  )
+}
 
 function HatchScreen({
   onDone,
 }: {
   onDone: (result?: string) => void
 }): React.ReactNode {
+  const existing = getCompanion()
+  const [step, setStep] = React.useState<HatchStep>(
+    existing ? 'confirm' : 'species',
+  )
+  const [species, setSpecies] = React.useState<Species>(SPECIES[0]!)
+  const [rarity, setRarity] = React.useState<Rarity>('rare')
+  const [shiny, setShiny] = React.useState(false)
+  const [eye, setEye] = React.useState<Eye>(EYES[0]!)
+  const [hat, setHat] = React.useState<Hat>('none')
+  const [name, setName] = React.useState('')
+  const [personality, setPersonality] = React.useState<Personality>(PERSONALITIES[0]!)
+  const [userImagine, setUserImagine] = React.useState('')
   const [companion, setCompanion] = React.useState<Companion | null>(null)
 
-  React.useEffect(() => {
-    const existing = getCompanion()
-    if (existing) {
-      setCompanion(existing)
-      return
-    }
-
-    const userId = companionUserId()
-    const { bones, inspirationSeed } = roll(userId)
-
-    const names = [
-      'Pip', 'Nox', 'Fizz', 'Boop', 'Wren', 'Tink', 'Mochi', 'Zeph',
-      'Cosmo', 'Nimbus', 'Pixel', 'Sprout', 'Ember', 'Clover', 'Luna',
-      'Ziggy', 'Pebble', 'Maple', 'Rusty', 'Misty',
-    ]
-    const name = names[inspirationSeed % names.length]!
-    const personalities = [
-      'cheerful and curious',
-      'quietly observant',
-      'mischievously playful',
-      'wise beyond their years',
-      'endlessly optimistic',
-      'calm and collected',
-      'energetic and bouncy',
-      'thoughtful and kind',
-    ]
-    const personality =
-      personalities[(inspirationSeed >> 4) % personalities.length]!
-
-    const soul = { name, personality, hatchedAt: Date.now() }
-    saveGlobalConfig(config => ({ ...config, companion: soul }))
-
-    const fullCompanion: Companion = { ...bones, ...soul }
-    setCompanion(fullCompanion)
-  }, [])
-
-  if (!companion) {
-    return <Text>Hatching...</Text>
+  if (step === 'confirm') {
+    return (
+      <ListSelector
+        title={`You already have a companion: ${existing!.name}. Re-initialize?`}
+        items={['yes', 'no'] as const}
+        labels={item => (item === 'yes' ? 'Yes, start over' : 'No, keep current')}
+        onSelect={item => {
+          if (item === 'yes') setStep('species')
+          else onDone()
+        }}
+      />
+    )
   }
 
-  return (
-    <Box flexDirection="column">
-      <Text bold color={RARITY_COLORS[companion.rarity]}>
-        Your companion hatched!
-      </Text>
-      <CompanionCard companion={companion} onDone={() => onDone()} />
-    </Box>
-  )
+  if (step === 'species') {
+    return (
+      <ListSelector
+        title="Choose your companion species:"
+        items={SPECIES}
+        labels={sp => {
+          const face = renderFace({ species: sp, eye: '·', hat: 'none' })
+          return `${face}  ${sp}`
+        }}
+        onSelect={sp => {
+          setSpecies(sp)
+          setStep('rarity')
+        }}
+      />
+    )
+  }
+
+  if (step === 'rarity') {
+    return (
+      <ListSelector
+        title="Choose rarity:"
+        items={RARITIES}
+        labels={r =>
+          `${RARITY_STARS[r]} ${r} (×${RARITY_MULTIPLIERS[r]})`
+        }
+        onSelect={r => {
+          setRarity(r)
+          setStep('shiny')
+        }}
+      />
+    )
+  }
+
+  if (step === 'shiny') {
+    return (
+      <ListSelector
+        title="Shiny variant?"
+        items={['no', 'yes'] as const}
+        labels={item => (item === 'yes' ? '✨ Yes, shiny!' : 'No, normal')}
+        onSelect={item => {
+          setShiny(item === 'yes')
+          setStep('eye')
+        }}
+      />
+    )
+  }
+
+  if (step === 'eye') {
+    return (
+      <ListSelector
+        title="Choose eye style:"
+        items={EYES}
+        labels={e => {
+          const face = renderFace({ species, eye: e, hat: 'none' })
+          return `${face}  (${e})`
+        }}
+        onSelect={e => {
+          setEye(e)
+          setStep('hat')
+        }}
+      />
+    )
+  }
+
+  if (step === 'hat') {
+    const availableHats = rarity === 'common' ? (['none'] as const) : HATS
+    if (rarity === 'common') {
+      // Skip hat selection for common rarity
+      setHat('none')
+      setStep('name')
+      return null
+    }
+    return (
+      <ListSelector
+        title="Choose a hat:"
+        items={availableHats}
+        onSelect={h => {
+          setHat(h as Hat)
+          setStep('name')
+        }}
+      />
+    )
+  }
+
+  if (step === 'name') {
+    return (
+      <TextInput
+        title="Name your companion:"
+        onSubmit={n => {
+          setName(n)
+          setStep('personality')
+        }}
+      />
+    )
+  }
+
+  if (step === 'personality') {
+    return (
+      <ListSelector
+        title="Choose personality:"
+        items={PERSONALITIES}
+        onSelect={p => {
+          setPersonality(p)
+          setStep('imagine')
+        }}
+      />
+    )
+  }
+
+  if (step === 'imagine') {
+    return (
+      <ImagineInput
+        onSubmit={text => {
+          setUserImagine(text)
+          setStep('generating')
+        }}
+      />
+    )
+  }
+
+  if (step === 'generating') {
+    return (
+      <GeneratingProfile
+        species={species}
+        personality={personality}
+        userImagine={userImagine}
+        onDone={profile => {
+          const finalStats = getScaledBaseStats(species, rarity)
+          const newCompanion: Companion = {
+            species,
+            rarity,
+            eye,
+            hat,
+            shiny,
+            name,
+            personality,
+            profile,
+            stats: finalStats,
+            hatchedAt: Date.now(),
+            effortUsed: 0,
+          }
+          saveCompanion(newCompanion)
+          setCompanion(newCompanion)
+          setStep('done')
+        }}
+      />
+    )
+  }
+
+  if (step === 'done' && companion) {
+    return (
+      <Box flexDirection="column">
+        <Text bold color={RARITY_COLORS[companion.rarity]}>
+          Your companion is ready!
+        </Text>
+        <CompanionCard companion={companion} onDone={() => onDone()} />
+      </Box>
+    )
+  }
+
+  return null
 }
 
 // ── Main command ──────────────────────────────────────────────────────
 
 export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   const sub = args.trim().toLowerCase()
+
+  if (sub.startsWith('chat ')) {
+    const content = args.trim().slice(5).trim()
+    if (!content) {
+      onDone('Usage: /buddy chat <message>')
+      return null
+    }
+    const companion = getCompanion()
+    if (!companion) {
+      onDone('No companion yet — try /buddy hatch first!')
+      return null
+    }
+    const ChatAction = (): React.ReactNode => {
+      const setAppState = useSetAppState()
+      React.useEffect(() => {
+        void chatWithCompanion(content).then(reply => {
+          if (reply) {
+            setAppState(prev => ({ ...prev, companionReaction: reply }))
+          }
+          onDone()
+        })
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [])
+      return null
+    }
+    return <ChatAction />
+  }
 
   if (sub === 'pet') {
     const companion = getCompanion()
@@ -233,15 +543,11 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
     if (existing && sub === '') {
       return <CompanionCard companion={existing} onDone={() => onDone()} />
     }
-    if (existing && sub === 'hatch') {
-      onDone(`You already have a companion: ${existing.name}!`)
-      return null
-    }
     return <HatchScreen onDone={onDone} />
   }
 
   onDone(
-    `Unknown subcommand: ${sub}. Try: /buddy, /buddy hatch, /buddy pet, /buddy card, /buddy mute, /buddy unmute`,
+    `Unknown subcommand: ${sub}. Try: /buddy, /buddy hatch, /buddy chat <msg>, /buddy pet, /buddy card, /buddy mute, /buddy unmute`,
   )
   return null
 }
