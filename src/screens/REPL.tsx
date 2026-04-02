@@ -1047,7 +1047,7 @@ export function REPL({
         // Wait for repo classification to settle (memoized, no-op if primed).
         const {
           isInternalModelRepo
-        } = await import('../utils/commitAttribution.js');
+        } = await import('../utils/repoClassification.js');
         await isInternalModelRepo();
         const {
           shouldShowUndercoverAutoNotice
