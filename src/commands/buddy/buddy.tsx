@@ -238,6 +238,8 @@ function ImagineInput({
   )
 }
 
+const SPINNER_FRAMES = ['◐', '◓', '◑', '◒']
+
 function GeneratingProfile({
   species,
   personality,
@@ -249,12 +251,12 @@ function GeneratingProfile({
   userImagine: string
   onDone: (profile: string) => void
 }): React.ReactNode {
-  const [dots, setDots] = React.useState('')
+  const [frame, setFrame] = React.useState(0)
 
   React.useEffect(() => {
     const interval = setInterval(() => {
-      setDots(d => (d.length >= 3 ? '' : d + '.'))
-    }, 400)
+      setFrame(f => (f + 1) % SPINNER_FRAMES.length)
+    }, 120)
     return () => clearInterval(interval)
   }, [])
 
@@ -265,8 +267,7 @@ function GeneratingProfile({
 
   return (
     <Box flexDirection="column">
-      <Text bold>Generating companion profile{dots}</Text>
-      <Text dimColor>This may take a few seconds.</Text>
+      <Text bold>{SPINNER_FRAMES[frame]} 同伴正在出生...</Text>
     </Box>
   )
 }
