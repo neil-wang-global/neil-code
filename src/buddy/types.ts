@@ -161,31 +161,14 @@ export const SPECIES_BASE_STATS: Record<Species, Record<StatName, number>> = {
   [dodo]:      { DEBUGGING:  40, PATIENCE: 110, CHAOS:  30, WISDOM:  50, SNARK:  90 },
 }
 
-// Rarity multipliers applied to base stats. "rare" is the reference (×1.0).
-// Narrowed spread so rarity is a subtle modifier, not a dominant factor.
+// Rarity multipliers applied to base stats (used inside computeStats).
+// "rare" is the reference (×1.0). Narrowed spread so rarity is a subtle modifier.
 export const RARITY_MULTIPLIERS: Record<Rarity, number> = {
   common: 0.9,
   uncommon: 0.95,
   rare: 1.0,
   epic: 1.05,
   legendary: 1.1,
-}
-
-/**
- * Get species stats for a given rarity.
- * Applies the rarity multiplier to base stats (no cap).
- */
-export function getScaledBaseStats(
-  species: Species,
-  rarity: Rarity,
-): Record<StatName, number> {
-  const base = SPECIES_BASE_STATS[species]
-  const multiplier = RARITY_MULTIPLIERS[rarity]
-  const result = {} as Record<StatName, number>
-  for (const name of STAT_NAMES) {
-    result[name] = Math.round(base[name] * multiplier)
-  }
-  return result
 }
 
 export const RACES = [
@@ -206,7 +189,7 @@ export const RACES = [
 ] as const
 export type Race = (typeof RACES)[number]
 
-// Full companion type — everything persisted in buddy.settings.json
+// Full companion type — metadata only, stats computed at runtime via computeStats()
 export type Companion = {
   species: Species
   rarity: Rarity
@@ -216,9 +199,11 @@ export type Companion = {
   name: string
   personality: Personality
   profile: string
-  stats: Record<StatName, number>
+  ivs: Record<StatName, number>       // 0-31 per stat
+  evs: Record<StatName, number>       // 0-252 per stat, 510 total cap
+  exp: number                         // cumulative tokens
+  level: number                       // derived from exp, stored for convenience
   hatchedAt: number
-  effortUsed: number
 }
 
 export type StoredCompanion = Companion & {
@@ -227,9 +212,34 @@ export type StoredCompanion = Companion & {
 }
 
 export type BuddySettings = {
-  version: 2
+  version: 3
   activeCompanionId?: string
   companions: StoredCompanion[]
+}
+
+/**
+ * Compute final stats using the Pokemon formula.
+ * stat = floor(((2 × base + IV + EV/4) × level / 100) + 5) × natureModifier
+ */
+export function computeStats(companion: Companion): Record<StatName, number> {
+  const base = SPECIES_BASE_STATS[companion.species]
+  const multiplier = RARITY_MULTIPLIERS[companion.rarity]
+  const nature = NATURE_MODIFIERS[companion.personality]
+  const result = {} as Record<StatName, number>
+
+  for (const stat of STAT_NAMES) {
+    const raceValue = Math.round(base[stat] * multiplier)
+    const iv = companion.ivs[stat]
+    const ev = companion.evs[stat]
+    const raw = Math.floor(((2 * raceValue + iv + Math.floor(ev / 4)) * companion.level / 100) + 5)
+
+    let natureModifier = 1.0
+    if (nature.plus === stat) natureModifier = 1.1
+    else if (nature.minus === stat) natureModifier = 0.9
+
+    result[stat] = Math.floor(raw * natureModifier)
+  }
+  return result
 }
 
 export const RARITY_STARS = {
@@ -342,6 +352,43 @@ export const PERSONALITY_LABELS: Record<Personality, string> = {
   bold: '大胆',
   dreamy: '梦幻',
   grumpy: '傲娇',
+}
+
+// Nature modifiers: +10% on one stat, -10% on another.
+// Maps personality → [boosted stat, reduced stat]
+export const NATURE_MODIFIERS: Record<Personality, { plus: StatName; minus: StatName }> = {
+  cheerful:  { plus: 'CHAOS',     minus: 'PATIENCE' },  // 开朗：+混沌 -耐心
+  sarcastic: { plus: 'SNARK',     minus: 'WISDOM' },    // 毒舌：+毒舌 -智慧
+  wise:      { plus: 'WISDOM',    minus: 'CHAOS' },     // 睿智：+智慧 -混沌
+  chaotic:   { plus: 'CHAOS',     minus: 'DEBUGGING' }, // 混沌：+混沌 -调试
+  shy:       { plus: 'PATIENCE',  minus: 'SNARK' },     // 害羞：+耐心 -毒舌
+  bold:      { plus: 'DEBUGGING', minus: 'PATIENCE' },  // 大胆：+调试 -耐心
+  dreamy:    { plus: 'WISDOM',    minus: 'SNARK' },     // 梦幻：+智慧 -毒舌
+  grumpy:    { plus: 'SNARK',     minus: 'CHAOS' },     // 傲娇：+毒舌 -混沌
+}
+
+export const MAX_EV_PER_STAT = 252
+export const MAX_EV_TOTAL = 510
+export const MAX_LEVEL = 100
+export const EV_GAIN_CHANCE = 0.10
+export const SHINY_EXP_MULTIPLIER = 1.2
+export const SHINY_EV_MULTIPLIER = 2
+
+/**
+ * Cumulative experience required to reach a given level.
+ * Formula: 3000 × level². Level 100 = 30M tokens.
+ * Heavy user (~1M tokens/day) reaches 100 in ~1 month.
+ */
+export function getExpForLevel(level: number): number {
+  return 3000 * level * level
+}
+
+/**
+ * Compute level from cumulative experience.
+ */
+export function getLevelFromExp(exp: number): number {
+  const raw = Math.floor(Math.sqrt(exp / 3000))
+  return Math.max(1, Math.min(MAX_LEVEL, raw))
 }
 
 export const HAT_LABELS: Record<Hat, string> = {

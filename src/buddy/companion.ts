@@ -3,41 +3,23 @@ import { randomUUID } from 'crypto'
 import { join } from 'path'
 import { getClaudeConfigHomeDir } from '../utils/envUtils.js'
 import { writeFileSyncAndFlush_DEPRECATED } from '../utils/file.js'
-import type { BuddySettings, Companion, StoredCompanion } from './types.js'
+import type { BuddySettings, StoredCompanion } from './types.js'
 
 function getBuddySettingsPath(): string {
   return join(getClaudeConfigHomeDir(), 'buddy.settings.json')
 }
 
-type LegacyStoredCompanion = Companion
-
-function isLegacyCompanion(data: unknown): data is LegacyStoredCompanion {
-  if (!data || typeof data !== 'object') return false
-  const candidate = data as Record<string, unknown>
-  return (
-    typeof candidate.species === 'string' &&
-    typeof candidate.rarity === 'string' &&
-    typeof candidate.name === 'string' &&
-    typeof candidate.profile === 'string' &&
-    typeof candidate.hatchedAt === 'number'
-  )
-}
-
 function isBuddySettings(data: unknown): data is BuddySettings {
   if (!data || typeof data !== 'object') return false
   const candidate = data as Record<string, unknown>
-  return candidate.version === 2 && Array.isArray(candidate.companions)
+  return candidate.version === 3 && Array.isArray(candidate.companions)
 }
 
-function normalizeStoredCompanion(
-  companion: LegacyStoredCompanion | StoredCompanion,
-): StoredCompanion {
-  const candidate = companion as StoredCompanion & { effortUsed?: number }
+function normalizeStoredCompanion(companion: StoredCompanion): StoredCompanion {
   return {
-    ...candidate,
-    id: candidate.id ?? randomUUID(),
-    adoptedAt: candidate.adoptedAt ?? candidate.hatchedAt,
-    effortUsed: candidate.effortUsed ?? 0,
+    ...companion,
+    id: companion.id ?? randomUUID(),
+    adoptedAt: companion.adoptedAt ?? companion.hatchedAt,
   }
 }
 
@@ -45,7 +27,7 @@ function normalizeBuddySettings(settings: BuddySettings): BuddySettings {
   const companions = settings.companions.map(normalizeStoredCompanion)
   const activeExists = companions.some(c => c.id === settings.activeCompanionId)
   return {
-    version: 2,
+    version: 3,
     companions,
     activeCompanionId:
       activeExists || companions.length === 0
@@ -54,23 +36,13 @@ function normalizeBuddySettings(settings: BuddySettings): BuddySettings {
   }
 }
 
-function migrateLegacyCompanion(companion: LegacyStoredCompanion): BuddySettings {
-  const normalized = normalizeStoredCompanion(companion)
-  return {
-    version: 2,
-    companions: [normalized],
-    activeCompanionId: normalized.id,
-  }
-}
-
 /**
  * Read all buddy settings from ~/.claude/buddy.settings.json.
- * Migrates legacy single-companion files to the new multi-companion format.
  */
 export function getBuddySettings(): BuddySettings {
   const path = getBuddySettingsPath()
   if (!existsSync(path)) {
-    return { version: 2, companions: [] }
+    return { version: 3, companions: [] }
   }
 
   try {
@@ -84,17 +56,11 @@ export function getBuddySettings(): BuddySettings {
       }
       return normalized
     }
-
-    if (isLegacyCompanion(data)) {
-      const migrated = migrateLegacyCompanion(data)
-      saveBuddySettings(migrated)
-      return migrated
-    }
   } catch {
-    return { version: 2, companions: [] }
+    return { version: 3, companions: [] }
   }
 
-  return { version: 2, companions: [] }
+  return { version: 3, companions: [] }
 }
 
 /**
@@ -138,7 +104,7 @@ export function addCompanion(companion: Companion | StoredCompanion): StoredComp
   const settings = getBuddySettings()
   const stored = normalizeStoredCompanion(companion)
   saveBuddySettings({
-    version: 2,
+    version: 3,
     companions: [...settings.companions, stored],
     activeCompanionId: stored.id,
   })
@@ -162,7 +128,7 @@ export function removeCompanion(companionId: string): boolean {
   const remaining = settings.companions.filter(c => c.id !== companionId)
   const needNewActive = settings.activeCompanionId === companionId
   saveBuddySettings({
-    version: 2,
+    version: 3,
     companions: remaining,
     activeCompanionId: needNewActive
       ? (remaining[0]?.id ?? undefined)

@@ -29,6 +29,8 @@ import {
   SPECIES_LABELS,
   SPECIES_TO_RACE,
   STAT_NAMES,
+  NATURE_MODIFIERS,
+  MAX_LEVEL,
   type Companion,
   type Eye,
   type Hat,
@@ -36,7 +38,8 @@ import {
   type Rarity,
   type Species,
   type StatName,
-  getScaledBaseStats,
+  computeStats,
+  getExpForLevel,
 } from '../../buddy/types.js'
 
 const CARD_WIDTH = 44
@@ -60,6 +63,41 @@ function StatBar({
   )
 }
 
+function ExpBar({
+  exp,
+  level,
+  color,
+}: {
+  exp: number
+  level: number
+  color: string
+}): React.ReactNode {
+  if (level >= MAX_LEVEL) {
+    return (
+      <Text>
+        <Text dimColor>{'EXP'.padEnd(10)}</Text>
+        <Text color={color}>MAX</Text>
+      </Text>
+    )
+  }
+  const currentLevelExp = getExpForLevel(level)
+  const nextLevelExp = getExpForLevel(level + 1)
+  const progress = nextLevelExp > currentLevelExp
+    ? Math.max(0, Math.min(1, (exp - currentLevelExp) / (nextLevelExp - currentLevelExp)))
+    : 1
+  const BAR_WIDTH = 20
+  const filled = Math.round(progress * BAR_WIDTH)
+  const empty = BAR_WIDTH - filled
+  return (
+    <Text>
+      <Text dimColor>{'EXP'.padEnd(10)}</Text>
+      <Text color={color}>{'█'.repeat(filled)}</Text>
+      <Text dimColor>{'░'.repeat(empty)}</Text>
+      <Text> {Math.round(progress * 100)}%</Text>
+    </Text>
+  )
+}
+
 function CompanionCard({
   companion,
   onDone,
@@ -71,6 +109,8 @@ function CompanionCard({
   const sprite = renderSprite(companion)
   const stars = RARITY_STARS[companion.rarity]
   const raceLabel = RACE_LABELS[SPECIES_TO_RACE[companion.species]]
+  const stats = computeStats(companion)
+  const nature = NATURE_MODIFIERS[companion.personality]
 
   useInput((_input, key) => {
     if (key.escape || key.return) {
@@ -114,6 +154,15 @@ function CompanionCard({
             "{SPECIES_DESCRIPTIONS[companion.species]}"
           </Text>
         </Box>
+        <Box justifyContent="space-between" marginTop={1}>
+          <Text bold>Lv. {companion.level}</Text>
+          <Text dimColor>
+            {PERSONALITY_LABELS[companion.personality]}
+            {' ('}
+            {nature.plus} ↑ {nature.minus} ↓
+            {')'}
+          </Text>
+        </Box>
         <Box
           flexDirection="column"
           marginTop={1}
@@ -128,10 +177,11 @@ function CompanionCard({
             <StatBar
               key={stat}
               name={stat}
-              value={companion.stats[stat]}
+              value={stats[stat]}
               color={color}
             />
           ))}
+          <ExpBar exp={companion.exp} level={companion.level} color={color} />
         </Box>
         <Box justifyContent="center" marginTop={1}>
           <Text dimColor>按 Esc 或 Enter 关闭</Text>
@@ -509,11 +559,6 @@ function HatchScreen({
         personality={personality}
         userImagine={userImagine}
         onDone={profile => {
-          const baseStats = getScaledBaseStats(species, rarity)
-          const finalStats = {} as Record<StatName, number>
-          for (const stat of STAT_NAMES) {
-            finalStats[stat] = baseStats[stat] + (ivs?.[stat] ?? 0)
-          }
           const newCompanion: Companion = {
             species,
             rarity,
@@ -523,9 +568,11 @@ function HatchScreen({
             name,
             personality,
             profile,
-            stats: finalStats,
+            ivs: ivs!,
+            evs: { DEBUGGING: 0, PATIENCE: 0, CHAOS: 0, WISDOM: 0, SNARK: 0 },
+            exp: 0,
+            level: 1,
             hatchedAt: Date.now(),
-            effortUsed: 0,
           }
           const stored = addCompanion(newCompanion)
           setCompanion(stored)
@@ -601,7 +648,7 @@ function CompanionListScreen({
             <Text key={companion.id} color={isActive ? RARITY_COLORS[companion.rarity] : undefined}>
               {i === index ? '▸ ' : '  '}
               {isActive ? '[当前] ' : ''}
-              {companion.name} · {species} · {race} · {rarity} · 努力值 {companion.effortUsed}
+              {companion.name} · {species} · {race} · {rarity} · Lv.{companion.level}
             </Text>
           )
         })}
