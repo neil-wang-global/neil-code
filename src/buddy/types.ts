@@ -120,56 +120,60 @@ export const STAT_NAMES = [
 ] as const
 export type StatName = (typeof STAT_NAMES)[number]
 
-// Species base stats at "rare" rarity (×1.0 multiplier).
-// Other rarities apply a multiplier via getScaledBaseStats(), capped at 100 per stat.
-// T1 (310+): dragon, ghost, capybara, trex, cndragon, wukong, totoro, gamabunta, mewtwo, bajie, pikachu, koromon, thanos
-// T2 (255-270): octopus, robot, cat, owl
-// T3 (230-245): axolotl, penguin, cactus, goose, mushroom
-// T4 (190-225): turtle, chonk, duck, blob, snail, rabbit, dodo
+// Species base stats (Pokemon-scale race values). No cap — IVs (0-31) are added on top.
+// T1 (BST 530-600): dragon, ghost, capybara, cndragon, wukong, totoro, gamabunta, mewtwo, bajie, pikachu, koromon, trex, thanos
+// T2 (BST 460-510): octopus, robot, cat, owl
+// T3 (BST 380-430): axolotl, penguin, cactus, goose, mushroom, turtle
+// T4 (BST 300-350): chonk, duck, blob, snail, rabbit, dodo
 export const SPECIES_BASE_STATS: Record<Species, Record<StatName, number>> = {
-  [dragon]:   { DEBUGGING: 85, PATIENCE: 30, CHAOS: 80, WISDOM: 65, SNARK: 55 },
-  [ghost]:    { DEBUGGING: 75, PATIENCE: 25, CHAOS: 85, WISDOM: 65, SNARK: 60 },
-  [capybara]: { DEBUGGING: 40, PATIENCE: 90, CHAOS: 20, WISDOM: 85, SNARK: 75 },
-  [octopus]:  { DEBUGGING: 70, PATIENCE: 50, CHAOS: 40, WISDOM: 80, SNARK: 30 },
-  [robot]:    { DEBUGGING: 90, PATIENCE: 55, CHAOS: 20, WISDOM: 75, SNARK: 25 },
-  [cat]:      { DEBUGGING: 55, PATIENCE: 25, CHAOS: 60, WISDOM: 45, SNARK: 75 },
-  [owl]:      { DEBUGGING: 45, PATIENCE: 60, CHAOS: 20, WISDOM: 90, SNARK: 40 },
-  [axolotl]:  { DEBUGGING: 50, PATIENCE: 55, CHAOS: 45, WISDOM: 60, SNARK: 35 },
-  [penguin]:  { DEBUGGING: 50, PATIENCE: 65, CHAOS: 30, WISDOM: 55, SNARK: 40 },
-  [cactus]:   { DEBUGGING: 40, PATIENCE: 70, CHAOS: 30, WISDOM: 35, SNARK: 65 },
-  [goose]:    { DEBUGGING: 35, PATIENCE: 15, CHAOS: 80, WISDOM: 30, SNARK: 75 },
-  [mushroom]: { DEBUGGING: 35, PATIENCE: 50, CHAOS: 65, WISDOM: 50, SNARK: 30 },
-  [turtle]:   { DEBUGGING: 30, PATIENCE: 85, CHAOS: 10, WISDOM: 60, SNARK: 40 },
-  [chonk]:    { DEBUGGING: 25, PATIENCE: 65, CHAOS: 40, WISDOM: 30, SNARK: 55 },
-  [duck]:     { DEBUGGING: 45, PATIENCE: 50, CHAOS: 35, WISDOM: 50, SNARK: 35 },
-  [blob]:     { DEBUGGING: 35, PATIENCE: 60, CHAOS: 25, WISDOM: 45, SNARK: 40 },
-  [snail]:    { DEBUGGING: 20, PATIENCE: 90, CHAOS: 10, WISDOM: 45, SNARK: 35 },
-  [rabbit]:   { DEBUGGING: 35, PATIENCE: 45, CHAOS: 40, WISDOM: 40, SNARK: 30 },
-  [cndragon]:  { DEBUGGING: 80, PATIENCE: 55, CHAOS: 65, WISDOM: 85, SNARK: 35 },
-  [wukong]:    { DEBUGGING: 90, PATIENCE: 15, CHAOS: 95, WISDOM: 70, SNARK: 55 },
-  [totoro]:    { DEBUGGING: 45, PATIENCE: 90, CHAOS: 25, WISDOM: 85, SNARK: 65 },
-  [gamabunta]: { DEBUGGING: 70, PATIENCE: 35, CHAOS: 75, WISDOM: 70, SNARK: 65 },
-  [mewtwo]:    { DEBUGGING: 95, PATIENCE: 30, CHAOS: 55, WISDOM: 90, SNARK: 50 },
-  [bajie]:     { DEBUGGING: 50, PATIENCE: 75, CHAOS: 55, WISDOM: 55, SNARK: 80 },
-  [pikachu]:   { DEBUGGING: 65, PATIENCE: 50, CHAOS: 70, WISDOM: 60, SNARK: 70 },
-  [koromon]:   { DEBUGGING: 55, PATIENCE: 60, CHAOS: 65, WISDOM: 60, SNARK: 70 },
-  [dodo]:      { DEBUGGING: 25, PATIENCE: 70, CHAOS: 20, WISDOM: 30, SNARK: 55 },
-  [trex]:      { DEBUGGING: 75, PATIENCE: 20, CHAOS: 90, WISDOM: 60, SNARK: 70 },
-  [thanos]:    { DEBUGGING: 85, PATIENCE: 65, CHAOS: 80, WISDOM: 75, SNARK: 25 },
+  // T1 — legendary tier (BST 530-600)
+  [dragon]:    { DEBUGGING: 134, PATIENCE:  50, CHAOS: 130, WISDOM: 100, SNARK:  90 },
+  [ghost]:     { DEBUGGING: 120, PATIENCE:  40, CHAOS: 140, WISDOM: 105, SNARK: 100 },
+  [capybara]:  { DEBUGGING:  65, PATIENCE: 150, CHAOS:  30, WISDOM: 140, SNARK: 120 },
+  [cndragon]:  { DEBUGGING: 125, PATIENCE:  90, CHAOS: 100, WISDOM: 140, SNARK:  55 },
+  [wukong]:    { DEBUGGING: 145, PATIENCE:  25, CHAOS: 154, WISDOM: 110, SNARK:  90 },
+  [totoro]:    { DEBUGGING:  75, PATIENCE: 145, CHAOS:  40, WISDOM: 135, SNARK: 105 },
+  [gamabunta]: { DEBUGGING: 110, PATIENCE:  55, CHAOS: 125, WISDOM: 115, SNARK: 105 },
+  [mewtwo]:    { DEBUGGING: 154, PATIENCE:  50, CHAOS:  90, WISDOM: 150, SNARK:  80 },
+  [bajie]:     { DEBUGGING:  80, PATIENCE: 120, CHAOS:  90, WISDOM:  85, SNARK: 130 },
+  [pikachu]:   { DEBUGGING: 100, PATIENCE:  80, CHAOS: 115, WISDOM:  95, SNARK: 115 },
+  [koromon]:   { DEBUGGING:  90, PATIENCE:  95, CHAOS: 105, WISDOM: 100, SNARK: 110 },
+  [trex]:      { DEBUGGING: 120, PATIENCE:  30, CHAOS: 150, WISDOM:  95, SNARK: 115 },
+  [thanos]:    { DEBUGGING: 140, PATIENCE: 105, CHAOS: 130, WISDOM: 120, SNARK:  40 },
+  // T2 — evolved tier (BST 460-510)
+  [octopus]:   { DEBUGGING: 110, PATIENCE:  80, CHAOS:  65, WISDOM: 130, SNARK:  50 },
+  [robot]:     { DEBUGGING: 145, PATIENCE:  90, CHAOS:  30, WISDOM: 120, SNARK:  40 },
+  [cat]:       { DEBUGGING:  85, PATIENCE:  40, CHAOS: 100, WISDOM:  70, SNARK: 120 },
+  [owl]:       { DEBUGGING:  70, PATIENCE:  95, CHAOS:  35, WISDOM: 145, SNARK:  65 },
+  // T3 — mid tier (BST 380-430)
+  [axolotl]:   { DEBUGGING:  80, PATIENCE:  90, CHAOS:  70, WISDOM:  95, SNARK:  60 },
+  [penguin]:   { DEBUGGING:  80, PATIENCE: 105, CHAOS:  50, WISDOM:  85, SNARK:  65 },
+  [cactus]:    { DEBUGGING:  65, PATIENCE: 110, CHAOS:  50, WISDOM:  55, SNARK: 105 },
+  [goose]:     { DEBUGGING:  55, PATIENCE:  25, CHAOS: 130, WISDOM:  50, SNARK: 125 },
+  [mushroom]:  { DEBUGGING:  55, PATIENCE:  80, CHAOS: 105, WISDOM:  85, SNARK:  50 },
+  [turtle]:    { DEBUGGING:  50, PATIENCE: 135, CHAOS:  20, WISDOM: 100, SNARK:  65 },
+  // T4 — basic tier (BST 300-350)
+  [chonk]:     { DEBUGGING:  40, PATIENCE: 105, CHAOS:  65, WISDOM:  50, SNARK:  90 },
+  [duck]:      { DEBUGGING:  70, PATIENCE:  80, CHAOS:  55, WISDOM:  80, SNARK:  55 },
+  [blob]:      { DEBUGGING:  55, PATIENCE:  95, CHAOS:  40, WISDOM:  75, SNARK:  65 },
+  [snail]:     { DEBUGGING:  30, PATIENCE: 145, CHAOS:  20, WISDOM:  70, SNARK:  55 },
+  [rabbit]:    { DEBUGGING:  55, PATIENCE:  70, CHAOS:  65, WISDOM:  65, SNARK:  50 },
+  [dodo]:      { DEBUGGING:  40, PATIENCE: 110, CHAOS:  30, WISDOM:  50, SNARK:  90 },
 }
 
 // Rarity multipliers applied to base stats. "rare" is the reference (×1.0).
+// Narrowed spread so rarity is a subtle modifier, not a dominant factor.
 export const RARITY_MULTIPLIERS: Record<Rarity, number> = {
-  common: 0.6,
-  uncommon: 0.8,
+  common: 0.9,
+  uncommon: 0.95,
   rare: 1.0,
-  epic: 1.15,
-  legendary: 1.3,
+  epic: 1.05,
+  legendary: 1.1,
 }
 
 /**
  * Get species stats for a given rarity.
- * Applies the rarity multiplier to base stats, capped at 100 per stat.
+ * Applies the rarity multiplier to base stats (no cap).
  */
 export function getScaledBaseStats(
   species: Species,
@@ -179,7 +183,7 @@ export function getScaledBaseStats(
   const multiplier = RARITY_MULTIPLIERS[rarity]
   const result = {} as Record<StatName, number>
   for (const name of STAT_NAMES) {
-    result[name] = Math.min(100, Math.round(base[name] * multiplier))
+    result[name] = Math.round(base[name] * multiplier)
   }
   return result
 }

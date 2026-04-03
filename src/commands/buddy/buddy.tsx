@@ -35,6 +35,7 @@ import {
   type Personality,
   type Rarity,
   type Species,
+  type StatName,
   getScaledBaseStats,
 } from '../../buddy/types.js'
 
@@ -51,14 +52,10 @@ function StatBar({
   value: number
   color: string
 }): React.ReactNode {
-  const filled = Math.round(value / 5)
-  const empty = 20 - filled
   return (
     <Text>
       <Text dimColor>{name.padEnd(10)}</Text>
-      <Text color={color}>{'█'.repeat(filled)}</Text>
-      <Text dimColor>{'░'.repeat(empty)}</Text>
-      <Text> {value}</Text>
+      <Text color={color}>{String(value).padStart(4)}</Text>
     </Text>
   )
 }
@@ -155,6 +152,7 @@ type HatchStep =
   | 'hat'
   | 'name'
   | 'personality'
+  | 'iv'
   | 'imagine'
   | 'generating'
   | 'done'
@@ -283,7 +281,64 @@ function GeneratingProfile({
 
   return (
     <Box flexDirection="column">
-      <Text bold>{SPINNER_FRAMES[frame]} 同伴正在加入你的收藏...</Text>
+      <Text bold>{SPINNER_FRAMES[frame]} 同伴正在加入你的队伍中...</Text>
+    </Box>
+  )
+}
+
+const IV_BAR_WIDTH = 16
+
+function IvAllocatorScreen({
+  ivs,
+  cursor,
+  onChangeIvs,
+  onChangeCursor,
+  onDone,
+}: {
+  ivs: Record<StatName, number>
+  cursor: number
+  onChangeIvs: (updater: (prev: Record<StatName, number>) => Record<StatName, number>) => void
+  onChangeCursor: (updater: (prev: number) => number) => void
+  onDone: () => void
+}): React.ReactNode {
+  useInput((_input, key) => {
+    if (key.upArrow) onChangeCursor(i => Math.max(0, i - 1))
+    else if (key.downArrow) onChangeCursor(i => Math.min(STAT_NAMES.length - 1, i + 1))
+    else if (key.rightArrow) {
+      const stat = STAT_NAMES[cursor]!
+      if (ivs[stat] < 31) {
+        onChangeIvs(prev => ({ ...prev, [stat]: prev[stat] + 1 }))
+      }
+    } else if (key.leftArrow) {
+      const stat = STAT_NAMES[cursor]!
+      if (ivs[stat] > 0) {
+        onChangeIvs(prev => ({ ...prev, [stat]: prev[stat] - 1 }))
+      }
+    } else if (key.return) {
+      onDone()
+    }
+  })
+
+  return (
+    <Box flexDirection="column">
+      <Text bold>调整个体值（0-31）</Text>
+      <Text dimColor>（↑↓ 选择维度，←→ 调整，Enter 确认）</Text>
+      <Box flexDirection="column" marginTop={1}>
+        {STAT_NAMES.map((stat, i) => {
+          const val = ivs[stat]
+          const filled = Math.round((val / 31) * IV_BAR_WIDTH)
+          const empty = IV_BAR_WIDTH - filled
+          return (
+            <Text key={stat}>
+              {i === cursor ? '▸ ' : '  '}
+              <Text dimColor>{stat.padEnd(10)}</Text>
+              <Text color="green">{'█'.repeat(filled)}</Text>
+              <Text dimColor>{'░'.repeat(empty)}</Text>
+              <Text bold>{` ${String(val).padStart(2)}`}</Text>
+            </Text>
+          )
+        })}
+      </Box>
     </Box>
   )
 }
@@ -302,6 +357,8 @@ function HatchScreen({
   const [name, setName] = React.useState('')
   const [personality, setPersonality] = React.useState<Personality>(PERSONALITIES[0]!)
   const [userImagine, setUserImagine] = React.useState('')
+  const [ivs, setIvs] = React.useState<Record<StatName, number> | null>(null)
+  const [ivCursor, setIvCursor] = React.useState(0)
   const [companion, setCompanion] = React.useState<OwnedCompanion | null>(null)
 
   if (step === 'species') {
@@ -407,8 +464,26 @@ function HatchScreen({
         labels={p => PERSONALITY_LABELS[p]}
         onSelect={p => {
           setPersonality(p)
-          setStep('imagine')
+          const randomIvs = {} as Record<StatName, number>
+          for (const stat of STAT_NAMES) {
+            randomIvs[stat] = Math.floor(Math.random() * 32)
+          }
+          setIvs(randomIvs)
+          setIvCursor(0)
+          setStep('iv')
         }}
+      />
+    )
+  }
+
+  if (step === 'iv' && ivs) {
+    return (
+      <IvAllocatorScreen
+        ivs={ivs}
+        cursor={ivCursor}
+        onChangeIvs={setIvs as (updater: (prev: Record<StatName, number>) => Record<StatName, number>) => void}
+        onChangeCursor={setIvCursor}
+        onDone={() => setStep('imagine')}
       />
     )
   }
@@ -431,7 +506,11 @@ function HatchScreen({
         personality={personality}
         userImagine={userImagine}
         onDone={profile => {
-          const finalStats = getScaledBaseStats(species, rarity)
+          const baseStats = getScaledBaseStats(species, rarity)
+          const finalStats = {} as Record<StatName, number>
+          for (const stat of STAT_NAMES) {
+            finalStats[stat] = baseStats[stat] + (ivs?.[stat] ?? 0)
+          }
           const newCompanion: Companion = {
             species,
             rarity,
@@ -663,13 +742,51 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
 
   if (sub === 'mute') {
     saveGlobalConfig(config => ({ ...config, companionMuted: true }))
-    onDone('同伴已静音。使用 /buddy unmute 让它回来。')
+    const companion = getCompanion()
+    const name = companion?.name ?? '同伴'
+    const muteMessages = [
+      `${name}正在闲逛，使用 /buddy unmute 让它回来。`,
+      `${name}跑去摸鱼了，使用 /buddy unmute 叫它回来。`,
+      `${name}溜出去散步了，使用 /buddy unmute 喊它回来。`,
+      `${name}躲进了草丛里，使用 /buddy unmute 把它找回来。`,
+      `${name}去小卖部买零食了，使用 /buddy unmute 催它回来。`,
+      `${name}正在打盹，使用 /buddy unmute 叫醒它。`,
+      `${name}钻进了代码缝隙里藏好了，使用 /buddy unmute 把它揪出来。`,
+      `${name}偷偷跑去隔壁终端串门了，使用 /buddy unmute 叫它回来。`,
+      `${name}抱着键盘睡着了，使用 /buddy unmute 戳戳它。`,
+      `${name}正蹲在角落画圈圈，使用 /buddy unmute 安慰一下它。`,
+      `${name}假装自己是注释，藏在代码里了，使用 /buddy unmute 让它现身。`,
+      `${name}骑着光标去兜风了，使用 /buddy unmute 等它回来。`,
+      `${name}在 node_modules 深处探险呢，使用 /buddy unmute 救它出来。`,
+      `${name}去给 bug 们讲故事了，使用 /buddy unmute 召唤它。`,
+      `${name}正在和编译器谈心，使用 /buddy unmute 打断它。`,
+      `${name}缩成一团假装是个像素点，使用 /buddy unmute 让它变回来。`,
+      `${name}去翻 git log 考古了，使用 /buddy unmute 叫它回来。`,
+      `${name}偷溜去数星星了，使用 /buddy unmute 喊它回来干活。`,
+      `${name}正趴在进度条上滑滑梯，使用 /buddy unmute 接住它。`,
+      `${name}跳进了回收站躲清静，使用 /buddy unmute 把它捞出来。`,
+    ]
+    onDone(muteMessages[Math.floor(Math.random() * muteMessages.length)]!)
     return null
   }
 
   if (sub === 'unmute') {
     saveGlobalConfig(config => ({ ...config, companionMuted: false }))
-    onDone('同伴已恢复显示！')
+    const companion = getCompanion()
+    const name = companion?.name ?? '同伴'
+    const unmuteMessages = [
+      `${name}回来了，精神满满！`,
+      `${name}打着哈欠晃回来了。`,
+      `${name}从草丛里蹦了出来！`,
+      `${name}气喘吁吁地跑回来了，手里还拎着零食。`,
+      `${name}探出头来：「想我了吧？」`,
+      `${name}拍了拍身上的灰，重新上岗了。`,
+      `${name}带着一堆八卦从隔壁终端回来了。`,
+      `${name}从 node_modules 深处爬了出来，看起来见了不少世面。`,
+      `${name}收到召唤，瞬间归位！`,
+      `${name}揉了揉眼睛：「啊，轮到我了？」`,
+    ]
+    onDone(unmuteMessages[Math.floor(Math.random() * unmuteMessages.length)]!)
     return null
   }
 
