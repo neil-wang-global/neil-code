@@ -7,6 +7,7 @@ import {
   addCompanion,
   getCompanion,
   listCompanions,
+  removeCompanion,
   setActiveCompanion,
 } from '../../buddy/companion.js'
 import { generateCompanionProfile, chatWithCompanion } from '../../buddy/observer.js'
@@ -527,8 +528,82 @@ function CompanionListScreen({
   )
 }
 
+function ReleaseScreen({
+  onDone,
+}: {
+  onDone: (result?: string) => void
+}): React.ReactNode {
+  const companions = listCompanions()
+  const [index, setIndex] = React.useState(0)
+  const [confirming, setConfirming] = React.useState(false)
+
+  useInput((_input, key) => {
+    if (confirming) {
+      const selected = companions[index]!
+      if (key.return) {
+        removeCompanion(selected.id)
+        onDone(`${selected.name} 已被放归自然，一路顺风！`)
+      } else if (key.escape) {
+        setConfirming(false)
+      }
+      return
+    }
+    if (key.escape) {
+      onDone()
+      return
+    }
+    if (key.upArrow) setIndex(i => Math.max(0, i - 1))
+    else if (key.downArrow) setIndex(i => Math.min(companions.length - 1, i + 1))
+    else if (key.return) {
+      setConfirming(true)
+    }
+  })
+
+  const selected = companions[index]
+
+  if (confirming && selected) {
+    return (
+      <Box flexDirection="column">
+        <Text bold color="red">
+          确定要放生 {selected.name}（{SPECIES_LABELS[selected.species]}）吗？
+        </Text>
+        <Text dimColor>此操作不可撤销。</Text>
+        <Text dimColor>Enter 确认放生，Esc 取消</Text>
+      </Box>
+    )
+  }
+
+  return (
+    <Box flexDirection="column">
+      <Text bold>选择要放生的同伴</Text>
+      <Text dimColor>（↑↓ 选择，Enter 放生，Esc 取消）</Text>
+      <Box flexDirection="column" marginTop={1}>
+        {companions.map((companion, i) => {
+          const species = SPECIES_LABELS[companion.species]
+          const rarity = RARITY_LABELS[companion.rarity]
+          return (
+            <Text key={companion.id} color={i === index ? RARITY_COLORS[companion.rarity] : undefined}>
+              {i === index ? '▸ ' : '  '}
+              {companion.name} · {species} · {rarity}
+            </Text>
+          )
+        })}
+      </Box>
+    </Box>
+  )
+}
+
 export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   const sub = args.trim().toLowerCase()
+
+  if (sub === 'release') {
+    const companions = listCompanions()
+    if (companions.length === 0) {
+      onDone('你还没有同伴，先试试 /buddy hatch 吧！')
+      return null
+    }
+    return <ReleaseScreen onDone={onDone} />
+  }
 
   if (sub.startsWith('chat ')) {
     const content = args.trim().slice(5).trim()
@@ -607,7 +682,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   }
 
   onDone(
-    `未知子命令：${sub}。可用命令：/buddy、/buddy hatch、/buddy list（在列表里直接切换）、/buddy chat <消息>、/buddy pet、/buddy card、/buddy mute、/buddy unmute`,
+    `未知子命令：${sub}。可用命令：/buddy、/buddy hatch、/buddy list（在列表里直接切换）、/buddy release（放生）、/buddy chat <消息>、/buddy pet、/buddy card、/buddy mute、/buddy unmute`,
   )
   return null
 }

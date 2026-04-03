@@ -154,6 +154,23 @@ export function setActiveCompanion(companionId: string): void {
   })
 }
 
+export function removeCompanion(companionId: string): boolean {
+  const settings = getBuddySettings()
+  const idx = settings.companions.findIndex(c => c.id === companionId)
+  if (idx === -1) return false
+
+  const remaining = settings.companions.filter(c => c.id !== companionId)
+  const needNewActive = settings.activeCompanionId === companionId
+  saveBuddySettings({
+    version: 2,
+    companions: remaining,
+    activeCompanionId: needNewActive
+      ? (remaining[0]?.id ?? undefined)
+      : settings.activeCompanionId,
+  })
+  return true
+}
+
 export function updateCompanion(
   companionId: string,
   updater: (companion: StoredCompanion) => StoredCompanion,
