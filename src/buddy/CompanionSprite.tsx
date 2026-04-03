@@ -168,7 +168,7 @@ export function companionReservedColumns(terminalColumns: number, speaking: bool
   const companion = getCompanion();
   if (!companion || getGlobalConfig().companionMuted) return 0;
   if (terminalColumns < MIN_COLS_FOR_FULL_SPRITE) return 0;
-  const nameWidth = stringWidth(companion.name);
+  const nameWidth = stringWidth(`${companion.name} Lv.${companion.level ?? 1}`);
   const bubble = speaking && !isFullscreenActive() ? BUBBLE_WIDTH : 0;
   return spriteColWidth(nameWidth, companion.species) + SPRITE_PADDING_X + bubble;
 }
@@ -224,7 +224,8 @@ export function CompanionSprite(): React.ReactNode {
   // replaces the name beside the face (no room for a bubble).
   if (columns < MIN_COLS_FOR_FULL_SPRITE) {
     const quip = reaction && reaction.length > NARROW_QUIP_CAP ? reaction.slice(0, NARROW_QUIP_CAP - 1) + '…' : reaction;
-    const label = quip ? `"${quip}"` : focused ? ` ${companion.name} ` : companion.name;
+    const nameWithLevel = `${companion.name} Lv.${companion.level ?? 1}`;
+    const label = quip ? `"${quip}"` : focused ? ` ${nameWithLevel} ` : nameWithLevel;
     return <Box paddingX={1} alignSelf="flex-end">
         <Text>
           {petting && <Text color="autoAccept">{figures.heart} </Text>}
@@ -261,12 +262,13 @@ export function CompanionSprite(): React.ReactNode {
   // PromptInputFooter's right column so this row stays one line and the
   // sprite doesn't jump up when selected. flexShrink=0 stops the
   // inline-bubble row wrapper from squeezing the sprite to fit.
+  const nameWithLevel = `${companion.name} Lv.${companion.level ?? 1}`;
   const spriteColumn = <Box flexDirection="column" flexShrink={0} alignItems="center" width={colWidth}>
       {sprite.map((line, i) => <Text key={i} color={i === 0 && heartFrame ? 'autoAccept' : color}>
           {line}
         </Text>)}
       <Text italic bold={focused} dimColor={!focused} color={focused ? color : undefined} inverse={focused}>
-        {focused ? ` ${companion.name} ` : companion.name}
+        {focused ? ` ${nameWithLevel} ` : nameWithLevel}
       </Text>
     </Box>;
   if (!reaction) {

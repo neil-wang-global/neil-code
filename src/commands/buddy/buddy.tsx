@@ -7,6 +7,7 @@ import {
   addCompanion,
   getCompanion,
   listCompanions,
+  removeCompanion,
   setActiveCompanion,
 } from '../../buddy/companion.js'
 import { generateCompanionProfile, chatWithCompanion } from '../../buddy/observer.js'
@@ -28,13 +29,17 @@ import {
   SPECIES_LABELS,
   SPECIES_TO_RACE,
   STAT_NAMES,
+  NATURE_MODIFIERS,
+  MAX_LEVEL,
   type Companion,
   type Eye,
   type Hat,
   type Personality,
   type Rarity,
   type Species,
-  getScaledBaseStats,
+  type StatName,
+  computeStats,
+  getExpForLevel,
 } from '../../buddy/types.js'
 
 const CARD_WIDTH = 44
@@ -50,14 +55,45 @@ function StatBar({
   value: number
   color: string
 }): React.ReactNode {
-  const filled = Math.round(value / 5)
-  const empty = 20 - filled
   return (
     <Text>
       <Text dimColor>{name.padEnd(10)}</Text>
+      <Text color={color}>{String(value).padStart(4)}</Text>
+    </Text>
+  )
+}
+
+function ExpBar({
+  exp,
+  level,
+  color,
+}: {
+  exp: number
+  level: number
+  color: string
+}): React.ReactNode {
+  if (level >= MAX_LEVEL) {
+    return (
+      <Text>
+        <Text dimColor>{'EXP'.padEnd(10)}</Text>
+        <Text color={color}>MAX</Text>
+      </Text>
+    )
+  }
+  const currentLevelExp = getExpForLevel(level)
+  const nextLevelExp = getExpForLevel(level + 1)
+  const progress = nextLevelExp > currentLevelExp
+    ? Math.max(0, Math.min(1, (exp - currentLevelExp) / (nextLevelExp - currentLevelExp)))
+    : 1
+  const BAR_WIDTH = 20
+  const filled = Math.round(progress * BAR_WIDTH)
+  const empty = BAR_WIDTH - filled
+  return (
+    <Text>
+      <Text dimColor>{'EXP'.padEnd(10)}</Text>
       <Text color={color}>{'█'.repeat(filled)}</Text>
       <Text dimColor>{'░'.repeat(empty)}</Text>
-      <Text> {value}</Text>
+      <Text> {Math.round(progress * 100)}%</Text>
     </Text>
   )
 }
@@ -73,6 +109,8 @@ function CompanionCard({
   const sprite = renderSprite(companion)
   const stars = RARITY_STARS[companion.rarity]
   const raceLabel = RACE_LABELS[SPECIES_TO_RACE[companion.species]]
+  const stats = computeStats(companion)
+  const nature = NATURE_MODIFIERS[companion.personality]
 
   useInput((_input, key) => {
     if (key.escape || key.return) {
@@ -116,6 +154,15 @@ function CompanionCard({
             "{SPECIES_DESCRIPTIONS[companion.species]}"
           </Text>
         </Box>
+        <Box justifyContent="space-between" marginTop={1}>
+          <Text bold>Lv. {companion.level}</Text>
+          <Text dimColor>
+            {PERSONALITY_LABELS[companion.personality]}
+            {' ('}
+            {nature.plus} ↑ {nature.minus} ↓
+            {')'}
+          </Text>
+        </Box>
         <Box
           flexDirection="column"
           marginTop={1}
@@ -130,10 +177,11 @@ function CompanionCard({
             <StatBar
               key={stat}
               name={stat}
-              value={companion.stats[stat]}
+              value={stats[stat]}
               color={color}
             />
           ))}
+          <ExpBar exp={companion.exp} level={companion.level} color={color} />
         </Box>
         <Box justifyContent="center" marginTop={1}>
           <Text dimColor>按 Esc 或 Enter 关闭</Text>
@@ -154,6 +202,7 @@ type HatchStep =
   | 'hat'
   | 'name'
   | 'personality'
+  | 'iv'
   | 'imagine'
   | 'generating'
   | 'done'
@@ -195,12 +244,14 @@ function ListSelector<T extends string>({
 
 function TextInput({
   title,
+  defaultValue = '',
   onSubmit,
 }: {
   title: string
+  defaultValue?: string
   onSubmit: (value: string) => void
 }): React.ReactNode {
-  const [value, setValue] = React.useState('')
+  const [value, setValue] = React.useState(defaultValue)
 
   useInput((input, key) => {
     if (key.return && value.trim()) {
@@ -282,7 +333,64 @@ function GeneratingProfile({
 
   return (
     <Box flexDirection="column">
-      <Text bold>{SPINNER_FRAMES[frame]} 同伴正在加入你的收藏...</Text>
+      <Text bold>{SPINNER_FRAMES[frame]} 同伴正在加入你的队伍中...</Text>
+    </Box>
+  )
+}
+
+const IV_BAR_WIDTH = 16
+
+function IvAllocatorScreen({
+  ivs,
+  cursor,
+  onChangeIvs,
+  onChangeCursor,
+  onDone,
+}: {
+  ivs: Record<StatName, number>
+  cursor: number
+  onChangeIvs: (updater: (prev: Record<StatName, number>) => Record<StatName, number>) => void
+  onChangeCursor: (updater: (prev: number) => number) => void
+  onDone: () => void
+}): React.ReactNode {
+  useInput((_input, key) => {
+    if (key.upArrow) onChangeCursor(i => Math.max(0, i - 1))
+    else if (key.downArrow) onChangeCursor(i => Math.min(STAT_NAMES.length - 1, i + 1))
+    else if (key.rightArrow) {
+      const stat = STAT_NAMES[cursor]!
+      if (ivs[stat] < 31) {
+        onChangeIvs(prev => ({ ...prev, [stat]: prev[stat] + 1 }))
+      }
+    } else if (key.leftArrow) {
+      const stat = STAT_NAMES[cursor]!
+      if (ivs[stat] > 0) {
+        onChangeIvs(prev => ({ ...prev, [stat]: prev[stat] - 1 }))
+      }
+    } else if (key.return) {
+      onDone()
+    }
+  })
+
+  return (
+    <Box flexDirection="column">
+      <Text bold>调整个体值（0-31）</Text>
+      <Text dimColor>（↑↓ 选择维度，←→ 调整，Enter 确认）</Text>
+      <Box flexDirection="column" marginTop={1}>
+        {STAT_NAMES.map((stat, i) => {
+          const val = ivs[stat]
+          const filled = Math.round((val / 31) * IV_BAR_WIDTH)
+          const empty = IV_BAR_WIDTH - filled
+          return (
+            <Text key={stat}>
+              {i === cursor ? '▸ ' : '  '}
+              <Text dimColor>{stat.padEnd(10)}</Text>
+              <Text color="green">{'█'.repeat(filled)}</Text>
+              <Text dimColor>{'░'.repeat(empty)}</Text>
+              <Text bold>{` ${String(val).padStart(2)}`}</Text>
+            </Text>
+          )
+        })}
+      </Box>
     </Box>
   )
 }
@@ -301,6 +409,8 @@ function HatchScreen({
   const [name, setName] = React.useState('')
   const [personality, setPersonality] = React.useState<Personality>(PERSONALITIES[0]!)
   const [userImagine, setUserImagine] = React.useState('')
+  const [ivs, setIvs] = React.useState<Record<StatName, number> | null>(null)
+  const [ivCursor, setIvCursor] = React.useState(0)
   const [companion, setCompanion] = React.useState<OwnedCompanion | null>(null)
 
   if (step === 'species') {
@@ -390,6 +500,7 @@ function HatchScreen({
     return (
       <TextInput
         title="给你的同伴起个名字："
+        defaultValue={SPECIES_LABELS[species]}
         onSubmit={n => {
           setName(n)
           setStep('personality')
@@ -406,8 +517,26 @@ function HatchScreen({
         labels={p => PERSONALITY_LABELS[p]}
         onSelect={p => {
           setPersonality(p)
-          setStep('imagine')
+          const randomIvs = {} as Record<StatName, number>
+          for (const stat of STAT_NAMES) {
+            randomIvs[stat] = Math.floor(Math.random() * 32)
+          }
+          setIvs(randomIvs)
+          setIvCursor(0)
+          setStep('iv')
         }}
+      />
+    )
+  }
+
+  if (step === 'iv' && ivs) {
+    return (
+      <IvAllocatorScreen
+        ivs={ivs}
+        cursor={ivCursor}
+        onChangeIvs={setIvs as (updater: (prev: Record<StatName, number>) => Record<StatName, number>) => void}
+        onChangeCursor={setIvCursor}
+        onDone={() => setStep('imagine')}
       />
     )
   }
@@ -430,7 +559,6 @@ function HatchScreen({
         personality={personality}
         userImagine={userImagine}
         onDone={profile => {
-          const finalStats = getScaledBaseStats(species, rarity)
           const newCompanion: Companion = {
             species,
             rarity,
@@ -440,9 +568,11 @@ function HatchScreen({
             name,
             personality,
             profile,
-            stats: finalStats,
+            ivs: ivs!,
+            evs: { DEBUGGING: 0, PATIENCE: 0, CHAOS: 0, WISDOM: 0, SNARK: 0 },
+            exp: 0,
+            level: 1,
             hatchedAt: Date.now(),
-            effortUsed: 0,
           }
           const stored = addCompanion(newCompanion)
           setCompanion(stored)
@@ -518,7 +648,72 @@ function CompanionListScreen({
             <Text key={companion.id} color={isActive ? RARITY_COLORS[companion.rarity] : undefined}>
               {i === index ? '▸ ' : '  '}
               {isActive ? '[当前] ' : ''}
-              {companion.name} · {species} · {race} · {rarity} · 努力值 {companion.effortUsed}
+              {companion.name} · {species} · {race} · {rarity} · Lv.{companion.level}
+            </Text>
+          )
+        })}
+      </Box>
+    </Box>
+  )
+}
+
+function ReleaseScreen({
+  onDone,
+}: {
+  onDone: (result?: string) => void
+}): React.ReactNode {
+  const companions = listCompanions()
+  const [index, setIndex] = React.useState(0)
+  const [confirming, setConfirming] = React.useState(false)
+
+  useInput((_input, key) => {
+    if (confirming) {
+      const selected = companions[index]!
+      if (key.return) {
+        removeCompanion(selected.id)
+        onDone(`${selected.name} 已被放归自然，一路顺风！`)
+      } else if (key.escape) {
+        setConfirming(false)
+      }
+      return
+    }
+    if (key.escape) {
+      onDone()
+      return
+    }
+    if (key.upArrow) setIndex(i => Math.max(0, i - 1))
+    else if (key.downArrow) setIndex(i => Math.min(companions.length - 1, i + 1))
+    else if (key.return) {
+      setConfirming(true)
+    }
+  })
+
+  const selected = companions[index]
+
+  if (confirming && selected) {
+    return (
+      <Box flexDirection="column">
+        <Text bold color="red">
+          确定要放生 {selected.name}（{SPECIES_LABELS[selected.species]}）吗？
+        </Text>
+        <Text dimColor>此操作不可撤销。</Text>
+        <Text dimColor>Enter 确认放生，Esc 取消</Text>
+      </Box>
+    )
+  }
+
+  return (
+    <Box flexDirection="column">
+      <Text bold>选择要放生的同伴</Text>
+      <Text dimColor>（↑↓ 选择，Enter 放生，Esc 取消）</Text>
+      <Box flexDirection="column" marginTop={1}>
+        {companions.map((companion, i) => {
+          const species = SPECIES_LABELS[companion.species]
+          const rarity = RARITY_LABELS[companion.rarity]
+          return (
+            <Text key={companion.id} color={i === index ? RARITY_COLORS[companion.rarity] : undefined}>
+              {i === index ? '▸ ' : '  '}
+              {companion.name} · {species} · {rarity}
             </Text>
           )
         })}
@@ -529,6 +724,15 @@ function CompanionListScreen({
 
 export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   const sub = args.trim().toLowerCase()
+
+  if (sub === 'release') {
+    const companions = listCompanions()
+    if (companions.length === 0) {
+      onDone('你还没有同伴，先试试 /buddy hatch 吧！')
+      return null
+    }
+    return <ReleaseScreen onDone={onDone} />
+  }
 
   if (sub.startsWith('chat ')) {
     const content = args.trim().slice(5).trim()
@@ -588,13 +792,51 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
 
   if (sub === 'mute') {
     saveGlobalConfig(config => ({ ...config, companionMuted: true }))
-    onDone('同伴已静音。使用 /buddy unmute 让它回来。')
+    const companion = getCompanion()
+    const name = companion?.name ?? '同伴'
+    const muteMessages = [
+      `${name}正在闲逛，使用 /buddy unmute 让它回来。`,
+      `${name}跑去摸鱼了，使用 /buddy unmute 叫它回来。`,
+      `${name}溜出去散步了，使用 /buddy unmute 喊它回来。`,
+      `${name}躲进了草丛里，使用 /buddy unmute 把它找回来。`,
+      `${name}去小卖部买零食了，使用 /buddy unmute 催它回来。`,
+      `${name}正在打盹，使用 /buddy unmute 叫醒它。`,
+      `${name}钻进了代码缝隙里藏好了，使用 /buddy unmute 把它揪出来。`,
+      `${name}偷偷跑去隔壁终端串门了，使用 /buddy unmute 叫它回来。`,
+      `${name}抱着键盘睡着了，使用 /buddy unmute 戳戳它。`,
+      `${name}正蹲在角落画圈圈，使用 /buddy unmute 安慰一下它。`,
+      `${name}假装自己是注释，藏在代码里了，使用 /buddy unmute 让它现身。`,
+      `${name}骑着光标去兜风了，使用 /buddy unmute 等它回来。`,
+      `${name}在 node_modules 深处探险呢，使用 /buddy unmute 救它出来。`,
+      `${name}去给 bug 们讲故事了，使用 /buddy unmute 召唤它。`,
+      `${name}正在和编译器谈心，使用 /buddy unmute 打断它。`,
+      `${name}缩成一团假装是个像素点，使用 /buddy unmute 让它变回来。`,
+      `${name}去翻 git log 考古了，使用 /buddy unmute 叫它回来。`,
+      `${name}偷溜去数星星了，使用 /buddy unmute 喊它回来干活。`,
+      `${name}正趴在进度条上滑滑梯，使用 /buddy unmute 接住它。`,
+      `${name}跳进了回收站躲清静，使用 /buddy unmute 把它捞出来。`,
+    ]
+    onDone(muteMessages[Math.floor(Math.random() * muteMessages.length)]!)
     return null
   }
 
   if (sub === 'unmute') {
     saveGlobalConfig(config => ({ ...config, companionMuted: false }))
-    onDone('同伴已恢复显示！')
+    const companion = getCompanion()
+    const name = companion?.name ?? '同伴'
+    const unmuteMessages = [
+      `${name}回来了，精神满满！`,
+      `${name}打着哈欠晃回来了。`,
+      `${name}从草丛里蹦了出来！`,
+      `${name}气喘吁吁地跑回来了，手里还拎着零食。`,
+      `${name}探出头来：「想我了吧？」`,
+      `${name}拍了拍身上的灰，重新上岗了。`,
+      `${name}带着一堆八卦从隔壁终端回来了。`,
+      `${name}从 node_modules 深处爬了出来，看起来见了不少世面。`,
+      `${name}收到召唤，瞬间归位！`,
+      `${name}揉了揉眼睛：「啊，轮到我了？」`,
+    ]
+    onDone(unmuteMessages[Math.floor(Math.random() * unmuteMessages.length)]!)
     return null
   }
 
@@ -607,7 +849,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   }
 
   onDone(
-    `未知子命令：${sub}。可用命令：/buddy、/buddy hatch、/buddy list（在列表里直接切换）、/buddy chat <消息>、/buddy pet、/buddy card、/buddy mute、/buddy unmute`,
+    `未知子命令：${sub}。可用命令：/buddy、/buddy hatch、/buddy list（在列表里直接切换）、/buddy release（放生）、/buddy chat <消息>、/buddy pet、/buddy card、/buddy mute、/buddy unmute`,
   )
   return null
 }

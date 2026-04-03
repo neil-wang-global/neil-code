@@ -1,40 +1,92 @@
 import { getActiveCompanion, updateActiveCompanion } from './companion.js'
-import { STAT_NAMES, type StatName } from './types.js'
+import {
+  getLevelFromExp,
+  MAX_EV_PER_STAT,
+  MAX_EV_TOTAL,
+  SHINY_EXP_MULTIPLIER,
+  SHINY_EV_MULTIPLIER,
+  EV_GAIN_CHANCE,
+  STAT_NAMES,
+  type StatName,
+} from './types.js'
 
-const GROWTH_CHANCE = 0.15
-const MAX_EFFORT = 50
-const MAX_STAT_VALUE = 100
-
-export type GrowthResult = {
-  stat: StatName
-  oldValue: number
-  newValue: number
+export type LevelUpResult = {
   companionName: string
+  oldLevel: number
+  newLevel: number
 } | null
 
 /**
- * Roll for stat growth after a conversation turn.
- * Returns the growth result if a stat increased, null otherwise.
+ * Add experience based on tokens used in a conversation turn.
+ * Shiny companions get 1.2× exp.
+ * Returns level-up info if the companion leveled up.
  */
-export function tryBuddyStatGrowth(): GrowthResult {
+export function addExperience(inputTokens: number, outputTokens: number): LevelUpResult {
   const companion = getActiveCompanion()
   if (!companion) return null
-  if (companion.effortUsed >= MAX_EFFORT) return null
-  if (Math.random() >= GROWTH_CHANCE) return null
 
-  const growable = STAT_NAMES.filter(s => companion.stats[s] < MAX_STAT_VALUE)
-  if (growable.length === 0) return null
+  const rawExp = inputTokens + outputTokens
+  const exp = companion.shiny ? Math.floor(rawExp * SHINY_EXP_MULTIPLIER) : rawExp
+  let oldLevel = 0
 
-  const stat = growable[Math.floor(Math.random() * growable.length)]!
-  const oldValue = companion.stats[stat]
-  const newValue = oldValue + 1
+  const updated = updateActiveCompanion(current => {
+    oldLevel = current.level ?? 1
+    const newExp = (current.exp ?? 0) + exp
+    const newLevel = getLevelFromExp(newExp)
+    return { ...current, exp: newExp, level: newLevel }
+  })
+
+  if (!updated) return null
+  if (updated.level > oldLevel) {
+    return { companionName: updated.name, oldLevel, newLevel: updated.level }
+  }
+  return null
+}
+
+export type EvGainResult = {
+  companionName: string
+  stat: StatName
+  amount: number
+} | null
+
+/**
+ * 10% chance per turn to gain EV in the dimension classified by Haiku.
+ * Shiny companions gain 2× EV.
+ * Returns false if no roll should happen (either by chance or cap).
+ */
+export function shouldRollForEv(): boolean {
+  const companion = getActiveCompanion()
+  if (!companion) return false
+  const totalEvs = STAT_NAMES.reduce((sum, s) => sum + companion.evs[s], 0)
+  if (totalEvs >= MAX_EV_TOTAL) return false
+  return Math.random() < EV_GAIN_CHANCE
+}
+
+/**
+ * Apply EV gain to the given stat dimension.
+ * Called after Haiku classifies the conversation.
+ */
+export function applyEvGain(stat: StatName): EvGainResult {
+  const companion = getActiveCompanion()
+  if (!companion) return null
+
+  const amount = companion.shiny ? SHINY_EV_MULTIPLIER : 1
+  const totalEvs = STAT_NAMES.reduce((sum, s) => sum + companion.evs[s], 0)
+  if (totalEvs >= MAX_EV_TOTAL) return null
+  if (companion.evs[stat] >= MAX_EV_PER_STAT) return null
+
+  const actualGain = Math.min(
+    amount,
+    MAX_EV_PER_STAT - companion.evs[stat],
+    MAX_EV_TOTAL - totalEvs,
+  )
+  if (actualGain <= 0) return null
 
   const updated = updateActiveCompanion(current => ({
     ...current,
-    stats: { ...current.stats, [stat]: newValue },
-    effortUsed: current.effortUsed + 1,
+    evs: { ...current.evs, [stat]: current.evs[stat] + actualGain },
   }))
 
   if (!updated) return null
-  return { stat, oldValue, newValue, companionName: updated.name }
+  return { companionName: updated.name, stat, amount: actualGain }
 }

@@ -14,7 +14,9 @@ import {
   PERSONALITY_LABELS,
   SPECIES_DESCRIPTIONS,
   SPECIES_LABELS,
+  STAT_NAMES,
   type Species,
+  type StatName,
 } from './types.js'
 
 const RECENT_MESSAGE_WINDOW = 10
@@ -248,6 +250,63 @@ export async function chatWithCompanion(
     if (response.isApiErrorMessage) return null
 
     return getAssistantMessageText(response)?.trim() ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Ask Haiku to classify which stat dimension a conversation most relates to.
+ * Returns one of the 5 stat names, or null on failure.
+ */
+export async function classifyConversationDimension(
+  messages: Message[],
+): Promise<StatName | null> {
+  try {
+    const controller = createAbortController()
+    const timeout = setTimeout(() => controller.abort(), 8_000)
+
+    const recent = messages.slice(-6)
+    recent.push(
+      createUserMessage({
+        content: [
+          '根据上面的对话内容，判断这轮对话最偏向以下哪个维度？只回复一个词：',
+          'DEBUGGING（调试/修bug/排查问题）',
+          'PATIENCE（耐心/等待/反复尝试）',
+          'CHAOS（混乱/实验/打破常规）',
+          'WISDOM（智慧/架构/设计决策）',
+          'SNARK（吐槽/犀利/批判性思维）',
+          '',
+          '只回复维度名称，不要解释。',
+        ].join('\n'),
+      }),
+    )
+
+    const response = await queryModelWithoutStreaming({
+      messages: recent,
+      systemPrompt: asSystemPrompt([]),
+      thinkingConfig: { type: 'disabled' },
+      tools: [],
+      signal: controller.signal,
+      options: {
+        getToolPermissionContext: async () => getEmptyToolPermissionContext(),
+        model: getSmallFastModel(),
+        toolChoice: undefined,
+        isNonInteractiveSession: false,
+        hasAppendSystemPrompt: false,
+        agents: [],
+        querySource: 'companion_ev_classify',
+        mcpTools: [],
+        skipCacheWrite: true,
+      },
+    })
+
+    clearTimeout(timeout)
+
+    if (response.isApiErrorMessage) return null
+    const text = getAssistantMessageText(response)?.trim().toUpperCase()
+    if (text && STAT_NAMES.includes(text as StatName)) return text as StatName
+    return null
   } catch {
     return null
   }

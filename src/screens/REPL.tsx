@@ -271,8 +271,8 @@ const WebBrowserPanelModule = feature('WEB_BROWSER_TOOL') ? require('../tools/We
 import { IssueFlagBanner } from '../components/PromptInput/IssueFlagBanner.js';
 import { useIssueFlagBanner } from '../hooks/useIssueFlagBanner.js';
 import { CompanionSprite, CompanionFloatingBubble, MIN_COLS_FOR_FULL_SPRITE } from '../buddy/CompanionSprite.js';
-import { fireCompanionObserver } from '../buddy/observer.js';
-import { tryBuddyStatGrowth } from '../buddy/growth.js';
+import { fireCompanionObserver, classifyConversationDimension } from '../buddy/observer.js';
+import { addExperience, shouldRollForEv, applyEvGain } from '../buddy/growth.js';
 import { DevBar } from '../components/DevBar.js';
 // Session manager removed - using AppState now
 import type { RemoteSessionConfig } from '../remote/RemoteSessionManager.js';
@@ -962,6 +962,8 @@ export function REPL({
   const loadingStartTimeRef = React.useRef<number>(0);
   const totalPausedMsRef = React.useRef(0);
   const pauseStartTimeRef = React.useRef<number | null>(null);
+  // Track cumulative input tokens to compute per-turn delta (getTotalInputTokens is cumulative)
+  const prevInputTokensRef = React.useRef(0);
   const resetTimingRefs = React.useCallback(() => {
     loadingStartTimeRef.current = Date.now();
     totalPausedMsRef.current = 0;
@@ -2821,14 +2823,27 @@ export function REPL({
       ...prev,
       companionReaction: reaction
     }));
-    // Buddy stat growth — 15% chance per turn
-    const growthResult = tryBuddyStatGrowth()
-    if (growthResult) {
+
+    // Buddy growth: add exp from this turn's token delta
+    const currentInputTokens = getTotalInputTokens()
+    const turnInputTokens = currentInputTokens - prevInputTokensRef.current
+    prevInputTokensRef.current = currentInputTokens
+    const turnOutputTokens = getTurnOutputTokens()
+    const levelUp = addExperience(turnInputTokens, turnOutputTokens)
+    if (levelUp) {
       addNotification({
-        key: 'buddy-stat-growth',
-        jsx: <Text bold color="warning">{`\u{1F389} ${growthResult.companionName} \u7684 ${growthResult.stat} +1\uFF01(${growthResult.oldValue} \u2192 ${growthResult.newValue})`}</Text>,
+        key: 'buddy-level-up',
+        jsx: <Text bold color="warning">{`\u{1F389} ${levelUp.companionName}\u5347\u7EA7\u4E86\uFF01`}</Text>,
         priority: 'immediate' as const,
         timeoutMs: 8000,
+      })
+    }
+
+    // 10% chance to gain EV via Haiku classification
+    if (shouldRollForEv()) {
+      void classifyConversationDimension(messagesRef.current).then(stat => {
+        if (!stat) return
+        applyEvGain(stat)
       })
     }
     queryCheckpoint('query_end');
