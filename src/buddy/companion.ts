@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'fs'
+import { existsSync, readFileSync, unlinkSync } from 'fs'
 import { randomUUID } from 'crypto'
 import { join } from 'path'
 import { getClaudeConfigHomeDir } from '../utils/envUtils.js'
@@ -55,6 +55,13 @@ export function getBuddySettings(): BuddySettings {
         saveBuddySettings(normalized)
       }
       return normalized
+    }
+
+    // v1/v2 data is incompatible with v3 — wipe and start fresh
+    const candidate = data as Record<string, unknown>
+    if (candidate.version === 1 || candidate.version === 2) {
+      unlinkSync(path)
+      return { version: 3, companions: [] }
     }
   } catch {
     return { version: 3, companions: [] }
