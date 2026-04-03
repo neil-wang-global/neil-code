@@ -10,7 +10,10 @@ import {
   logEvent,
 } from 'src/services/analytics/index.js'
 import { getModelStrings } from 'src/utils/model/modelStrings.js'
-import { getAPIProvider } from 'src/utils/model/providers.js'
+import {
+  getAPIProvider,
+  isFirstPartyAnthropicBaseUrl,
+} from 'src/utils/model/providers.js'
 import {
   getIsNonInteractiveSession,
   preferThirdPartyAuthentication,
@@ -110,6 +113,13 @@ export function isAnthropicAuthEnabled(): boolean {
   // "invalid x-api-key" from the API. See src/ssh/sshAuthProxy.ts.
   if (process.env.ANTHROPIC_UNIX_SOCKET) {
     return !!process.env.CLAUDE_CODE_OAUTH_TOKEN
+  }
+
+  // When ANTHROPIC_API_KEY is set with a non-Anthropic ANTHROPIC_BASE_URL,
+  // the user is clearly targeting a third-party API — skip OAuth without
+  // waiting for the key to be approved in customApiKeyResponses.
+  if (process.env.ANTHROPIC_API_KEY && !isFirstPartyAnthropicBaseUrl()) {
+    return false
   }
 
   const is3P =
