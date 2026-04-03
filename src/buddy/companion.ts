@@ -3,23 +3,134 @@ import { randomUUID } from 'crypto'
 import { join } from 'path'
 import { getClaudeConfigHomeDir } from '../utils/envUtils.js'
 import { writeFileSyncAndFlush_DEPRECATED } from '../utils/file.js'
-import type { BuddySettings, StoredCompanion } from './types.js'
+import { computeHmac, verifyHmac } from './integrity.js'
+import {
+  type BuddySettings,
+  type Companion,
+  type StoredCompanion,
+  SPECIES,
+  RARITIES,
+  EYES,
+  HATS,
+  PERSONALITIES,
+  STAT_NAMES,
+  MAX_EV_PER_STAT,
+  MAX_EV_TOTAL,
+  getLevelFromExp,
+  type StatName,
+} from './types.js'
 
 function getBuddySettingsPath(): string {
   return join(getClaudeConfigHomeDir(), 'buddy.settings.json')
 }
 
+function getHmacPath(): string {
+  return join(getClaudeConfigHomeDir(), '.buddy.hmac')
+}
+
 function isBuddySettings(data: unknown): data is BuddySettings {
+  if (!data || typeof data !== 'object') return false
+  const candidate = data as Record<string, unknown>
+  return candidate.version === 4 && Array.isArray(candidate.companions)
+}
+
+function isBuddySettingsV3(data: unknown): boolean {
   if (!data || typeof data !== 'object') return false
   const candidate = data as Record<string, unknown>
   return candidate.version === 3 && Array.isArray(candidate.companions)
 }
 
+function randomIv(): number {
+  return Math.floor(Math.random() * 32)
+}
+
+function generateRandomIvs(): Record<StatName, number> {
+  const ivs = {} as Record<StatName, number>
+  for (const stat of STAT_NAMES) {
+    ivs[stat] = randomIv()
+  }
+  return ivs
+}
+
+function zeroEvs(): Record<StatName, number> {
+  const evs = {} as Record<StatName, number>
+  for (const stat of STAT_NAMES) {
+    evs[stat] = 0
+  }
+  return evs
+}
+
+/**
+ * Reset stats to initial values (used on tamper detection).
+ * Preserves identity fields: id, species, name, personality, profile, hat, eye, shiny, rarity, hatchedAt, adoptedAt.
+ */
+function resetCompanionStats(companion: StoredCompanion): StoredCompanion {
+  return {
+    ...companion,
+    exp: 0,
+    level: 1,
+    ivs: generateRandomIvs(),
+    evs: zeroEvs(),
+  }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, Math.floor(value)))
+}
+
 function normalizeStoredCompanion(companion: StoredCompanion): StoredCompanion {
+  // Validate enums — if invalid, these are signs of corruption, not tampering,
+  // so we clamp rather than reset.
+  const species = SPECIES.includes(companion.species as typeof SPECIES[number])
+    ? companion.species
+    : SPECIES[0]!
+  const rarity = RARITIES.includes(companion.rarity as typeof RARITIES[number])
+    ? companion.rarity
+    : RARITIES[0]!
+  const eye = EYES.includes(companion.eye as typeof EYES[number])
+    ? companion.eye
+    : EYES[0]!
+  const hat = HATS.includes(companion.hat as typeof HATS[number])
+    ? companion.hat
+    : HATS[0]!
+  const personality = PERSONALITIES.includes(companion.personality as typeof PERSONALITIES[number])
+    ? companion.personality
+    : PERSONALITIES[0]!
+
+  // Validate IVs: 0-31
+  const ivs = {} as Record<StatName, number>
+  for (const stat of STAT_NAMES) {
+    ivs[stat] = clamp(companion.ivs?.[stat] ?? randomIv(), 0, 31)
+  }
+
+  // Validate EVs: 0-252 per stat, 510 total
+  const evs = {} as Record<StatName, number>
+  let evTotal = 0
+  for (const stat of STAT_NAMES) {
+    const raw = clamp(companion.evs?.[stat] ?? 0, 0, MAX_EV_PER_STAT)
+    const capped = Math.min(raw, MAX_EV_TOTAL - evTotal)
+    evs[stat] = capped
+    evTotal += capped
+  }
+
+  // Validate exp/level consistency
+  const exp = Math.max(0, companion.exp ?? 0)
+  const level = getLevelFromExp(exp)
+
   return {
     ...companion,
     id: companion.id ?? randomUUID(),
     adoptedAt: companion.adoptedAt ?? companion.hatchedAt,
+    species,
+    rarity,
+    eye,
+    hat,
+    personality,
+    shiny: typeof companion.shiny === 'boolean' ? companion.shiny : false,
+    ivs,
+    evs,
+    exp,
+    level,
   }
 }
 
@@ -27,7 +138,7 @@ function normalizeBuddySettings(settings: BuddySettings): BuddySettings {
   const companions = settings.companions.map(normalizeStoredCompanion)
   const activeExists = companions.some(c => c.id === settings.activeCompanionId)
   return {
-    version: 3,
+    version: 4,
     companions,
     activeCompanionId:
       activeExists || companions.length === 0
@@ -38,11 +149,12 @@ function normalizeBuddySettings(settings: BuddySettings): BuddySettings {
 
 /**
  * Read all buddy settings from ~/.claude/buddy.settings.json.
+ * Handles migration from v3, HMAC verification, and field validation.
  */
 export function getBuddySettings(): BuddySettings {
   const path = getBuddySettingsPath()
   if (!existsSync(path)) {
-    return { version: 3, companions: [] }
+    return { version: 4, companions: [] }
   }
 
   try {
@@ -50,33 +162,73 @@ export function getBuddySettings(): BuddySettings {
     const data = JSON.parse(raw) as unknown
 
     if (isBuddySettings(data)) {
-      const normalized = normalizeBuddySettings(data)
-      if (JSON.stringify(normalized) !== JSON.stringify(data)) {
-        saveBuddySettings(normalized)
+      // v4 — verify HMAC
+      const hmacPath = getHmacPath()
+      let tampered = true
+      if (existsSync(hmacPath)) {
+        try {
+          const storedHmac = readFileSync(hmacPath, 'utf-8').trim()
+          tampered = !verifyHmac(raw, storedHmac)
+        } catch {
+          tampered = true
+        }
       }
+
+      let settings = normalizeBuddySettings(data)
+
+      if (tampered) {
+        // Reset stats on all companions, preserve identity
+        settings = {
+          ...settings,
+          companions: settings.companions.map(resetCompanionStats),
+        }
+        saveBuddySettings(settings)
+      } else {
+        // Re-save only if normalization changed anything (field clamping)
+        const normalized = normalizeBuddySettings(data)
+        if (JSON.stringify(normalized) !== JSON.stringify(data)) {
+          saveBuddySettings(normalized)
+        }
+      }
+
+      return settings
+    }
+
+    // v3 → v4 migration: keep data, generate signature
+    if (isBuddySettingsV3(data)) {
+      const v3 = data as { companions: StoredCompanion[]; activeCompanionId?: string }
+      const migrated: BuddySettings = {
+        version: 4,
+        companions: v3.companions,
+        activeCompanionId: v3.activeCompanionId,
+      }
+      const normalized = normalizeBuddySettings(migrated)
+      saveBuddySettings(normalized)
       return normalized
     }
 
-    // v1/v2 data is incompatible with v3 — wipe and start fresh
+    // v1/v2/versionless — wipe and start fresh
     const candidate = data as Record<string, unknown>
-    if (candidate.version === 1 || candidate.version === 2) {
+    if (candidate.version === 1 || candidate.version === 2 || !candidate.version) {
       unlinkSync(path)
-      return { version: 3, companions: [] }
+      return { version: 4, companions: [] }
     }
   } catch {
-    return { version: 3, companions: [] }
+    return { version: 4, companions: [] }
   }
 
-  return { version: 3, companions: [] }
+  return { version: 4, companions: [] }
 }
 
 /**
- * Save all buddy settings to ~/.claude/buddy.settings.json.
+ * Save all buddy settings to ~/.claude/buddy.settings.json and write HMAC.
  */
 export function saveBuddySettings(settings: BuddySettings): void {
   const path = getBuddySettingsPath()
   const normalized = normalizeBuddySettings(settings)
-  writeFileSyncAndFlush_DEPRECATED(path, JSON.stringify(normalized, null, 2))
+  const json = JSON.stringify(normalized, null, 2)
+  writeFileSyncAndFlush_DEPRECATED(path, json)
+  writeFileSyncAndFlush_DEPRECATED(getHmacPath(), computeHmac(json))
 }
 
 /**
@@ -111,7 +263,7 @@ export function addCompanion(companion: Companion | StoredCompanion): StoredComp
   const settings = getBuddySettings()
   const stored = normalizeStoredCompanion(companion)
   saveBuddySettings({
-    version: 3,
+    version: 4,
     companions: [...settings.companions, stored],
     activeCompanionId: stored.id,
   })
@@ -135,7 +287,7 @@ export function removeCompanion(companionId: string): boolean {
   const remaining = settings.companions.filter(c => c.id !== companionId)
   const needNewActive = settings.activeCompanionId === companionId
   saveBuddySettings({
-    version: 3,
+    version: 4,
     companions: remaining,
     activeCompanionId: needNewActive
       ? (remaining[0]?.id ?? undefined)

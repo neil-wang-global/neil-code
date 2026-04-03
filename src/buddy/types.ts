@@ -212,7 +212,7 @@ export type StoredCompanion = Companion & {
 }
 
 export type BuddySettings = {
-  version: 3
+  version: 4
   activeCompanionId?: string
   companions: StoredCompanion[]
 }
