@@ -10,14 +10,9 @@ import figures from 'figures'
 import { errorMessage } from '../../utils/errors.js'
 import { gracefulShutdown } from '../../utils/gracefulShutdown.js'
 import { logError } from '../../utils/log.js'
-import { getManagedPluginNames } from '../../utils/plugins/managedPlugins.js'
 import { parsePluginIdentifier } from '../../utils/plugins/pluginIdentifier.js'
 import type { PluginScope } from '../../utils/plugins/schemas.js'
 import { writeToStdout } from '../../utils/process.js'
-import {
-  buildPluginTelemetryFields,
-  classifyPluginCommandError,
-} from '../../utils/telemetry/pluginTelemetry.js'
 import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
@@ -75,20 +70,12 @@ function handlePluginCommandError(
             _PROTO_marketplace_name:
               marketplace as AnalyticsMetadata_I_VERIFIED_THIS_IS_PII_TAGGED,
           }),
-          ...buildPluginTelemetryFields(
-            name,
-            marketplace,
-            getManagedPluginNames(),
-          ),
         }
       })()
     : {}
   logEvent('tengu_plugin_command_failed', {
     command:
       command as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    error_category: classifyPluginCommandError(
-      error,
-    ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     ...telemetryFields,
   })
   // eslint-disable-next-line custom-rules/no-process-exit
@@ -135,7 +122,6 @@ export async function installPlugin(
         scope) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       install_source:
         'cli-explicit' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      ...buildPluginTelemetryFields(name, marketplace, getManagedPluginNames()),
     })
 
     // eslint-disable-next-line custom-rules/no-process-exit
@@ -177,7 +163,6 @@ export async function uninstallPlugin(
       }),
       scope: (result.scope ||
         scope) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      ...buildPluginTelemetryFields(name, marketplace, getManagedPluginNames()),
     })
 
     // eslint-disable-next-line custom-rules/no-process-exit
@@ -218,7 +203,6 @@ export async function enablePlugin(
       }),
       scope:
         result.scope as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      ...buildPluginTelemetryFields(name, marketplace, getManagedPluginNames()),
     })
 
     // eslint-disable-next-line custom-rules/no-process-exit
@@ -259,7 +243,6 @@ export async function disablePlugin(
       }),
       scope:
         result.scope as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      ...buildPluginTelemetryFields(name, marketplace, getManagedPluginNames()),
     })
 
     // eslint-disable-next-line custom-rules/no-process-exit
@@ -329,11 +312,6 @@ export async function updatePluginCli(
           'unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         new_version: (result.newVersion ||
           'unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        ...buildPluginTelemetryFields(
-          name,
-          marketplace,
-          getManagedPluginNames(),
-        ),
       })
     }
 

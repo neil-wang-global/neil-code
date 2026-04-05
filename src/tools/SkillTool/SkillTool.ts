@@ -32,7 +32,6 @@ import {
   isOfficialMarketplaceName,
   parsePluginIdentifier,
 } from 'src/utils/plugins/pluginIdentifier.js'
-import { buildPluginCommandTelemetryFields } from 'src/utils/telemetry/pluginTelemetry.js'
 import { z } from 'zod/v4'
 import {
   addInvokedSkill,
@@ -109,7 +108,6 @@ const remoteSkillModules = feature('EXPERIMENTAL_SKILL_SEARCH')
   ? {
       ...(require('../../services/skillSearch/remoteSkillState.js') as typeof import('../../services/skillSearch/remoteSkillState.js')),
       ...(require('../../services/skillSearch/remoteSkillLoader.js') as typeof import('../../services/skillSearch/remoteSkillLoader.js')),
-      ...(require('../../services/skillSearch/telemetry.js') as typeof import('../../services/skillSearch/telemetry.js')),
       ...(require('../../services/skillSearch/featureCheck.js') as typeof import('../../services/skillSearch/featureCheck.js')),
     }
   : null
@@ -198,7 +196,6 @@ async function executeForkedSkill(
       plugin_repository: (isOfficialSkill
         ? command.pluginInfo.repository
         : 'third-party') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      ...buildPluginCommandTelemetryFields(command.pluginInfo),
     }),
   })
 
@@ -721,7 +718,6 @@ export const SkillTool: Tool<InputSchema, Output, Progress> = buildTool({
           plugin_repository: (isOfficialSkill
             ? command.pluginInfo.repository
             : 'third-party') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          ...buildPluginCommandTelemetryFields(command.pluginInfo),
         }),
     })
 
@@ -942,19 +938,6 @@ function isOfficialMarketplaceSkill(command: PromptCommand): boolean {
 }
 
 /**
- * Extract URL scheme for telemetry. Defaults to 'gs' for unrecognized schemes
- * since the AKI backend is the only production path and the loader throws on
- * unknown schemes before we reach telemetry anyway.
- */
-function extractUrlScheme(url: string): 'gs' | 'http' | 'https' | 's3' {
-  if (url.startsWith('gs://')) return 'gs'
-  if (url.startsWith('https://')) return 'https'
-  if (url.startsWith('http://')) return 'http'
-  if (url.startsWith('s3://')) return 's3'
-  return 'gs'
-}
-
-/**
  * Load a remote canonical skill and inject its SKILL.md content into the
  * conversation. Unlike local skills (which go through processPromptSlashCommand
  * for !command / $ARGUMENTS expansion), remote skills are declarative markdown
@@ -972,8 +955,7 @@ async function executeRemoteSkill(
   parentMessage: AssistantMessage,
   context: ToolUseContext,
 ): Promise<ToolResult<Output>> {
-  const { getDiscoveredRemoteSkill, loadRemoteSkill, logRemoteSkillLoaded } =
-    remoteSkillModules!
+  const { getDiscoveredRemoteSkill, loadRemoteSkill } = remoteSkillModules!
 
   // validateInput already confirmed this slug is in session state, but we
   // re-fetch here to get the URL. If it's somehow gone (e.g., state cleared
@@ -985,19 +967,11 @@ async function executeRemoteSkill(
     )
   }
 
-  const urlScheme = extractUrlScheme(meta.url)
   let loadResult
   try {
     loadResult = await loadRemoteSkill(slug, meta.url)
   } catch (e) {
     const msg = errorMessage(e)
-    logRemoteSkillLoaded({
-      slug,
-      cacheHit: false,
-      latencyMs: 0,
-      urlScheme,
-      error: msg,
-    })
     throw new Error(`Failed to load remote skill ${slug}: ${msg}`)
   }
 
@@ -1010,16 +984,6 @@ async function executeRemoteSkill(
     totalBytes,
     fetchMethod,
   } = loadResult
-
-  logRemoteSkillLoaded({
-    slug,
-    cacheHit,
-    latencyMs,
-    urlScheme,
-    fileCount,
-    totalBytes,
-    fetchMethod,
-  })
 
   // Remote skills are always model-discovered (never in static skill_listing),
   // so was_discovered is always true. is_remote lets BQ queries separate

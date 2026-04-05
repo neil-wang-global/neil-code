@@ -21,7 +21,6 @@ import {
   getSettingsForSource,
   updateSettingsForSource,
 } from '../settings/settings.js'
-import { buildPluginTelemetryFields } from '../telemetry/pluginTelemetry.js'
 import { clearAllCaches } from './cacheUtils.js'
 import {
   formatDependencyCountSuffix,
@@ -33,7 +32,6 @@ import {
   addInstalledPlugin,
   getGitCommitSha,
 } from './installedPluginsManager.js'
-import { getManagedPluginNames } from './managedPlugins.js'
 import { getMarketplaceCacheOnly, getPluginById } from './marketplaceManager.js'
 import {
   isOfficialMarketplaceName,
@@ -572,11 +570,6 @@ export async function installPluginFromMarketplace({
       install_source: (trigger === 'hint'
         ? 'ui-suggestion'
         : 'ui-discover') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      ...buildPluginTelemetryFields(
-        entry.name,
-        marketplaceName,
-        getManagedPluginNames(),
-      ),
       ...(entry.version && {
         version:
           entry.version as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,

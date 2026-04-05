@@ -9,7 +9,6 @@ import { isEnvTruthy } from '../../utils/envUtils.js';
 import { getLastAssistantMessage } from '../../utils/messages.js';
 import { getMainLoopModel } from '../../utils/model/model.js';
 import { getInitialSettings } from '../../utils/settings/settings.js';
-import { logOTelEvent } from '../../utils/telemetry/events.js';
 import { submitTranscriptShare, type TranscriptShareTrigger } from './submitTranscriptShare.js';
 import type { TranscriptShareResponse } from './TranscriptSharePrompt.js';
 import { useSurveyState } from './useSurveyState.js';
@@ -99,11 +98,6 @@ export function useFeedbackSurvey(messages: Message[], isLoading: boolean, submi
       last_assistant_message_id: lastAssistantMessageIdRef.current as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       survey_type: surveyType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
     });
-    void logOTelEvent('feedback_survey', {
-      event_type: 'appeared',
-      appearance_id: appearanceId,
-      survey_type: surveyType
-    });
   }, [updateLastShownTime, surveyType]);
   const onSelect = useCallback((appearanceId_0: string, selected: FeedbackSurveyResponse) => {
     updateLastShownTime(Date.now(), submitCountRef.current);
@@ -113,12 +107,6 @@ export function useFeedbackSurvey(messages: Message[], isLoading: boolean, submi
       response: selected as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       last_assistant_message_id: lastAssistantMessageIdRef.current as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       survey_type: surveyType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-    });
-    void logOTelEvent('feedback_survey', {
-      event_type: 'responded',
-      appearance_id: appearanceId_0,
-      response: selected,
-      survey_type: surveyType
     });
   }, [updateLastShownTime, surveyType]);
   const shouldShowTranscriptPrompt = useCallback((selected_0: FeedbackSurveyResponse) => {
@@ -149,11 +137,6 @@ export function useFeedbackSurvey(messages: Message[], isLoading: boolean, submi
       last_assistant_message_id: lastAssistantMessageIdRef.current as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       survey_type: surveyType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       trigger: trigger as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-    });
-    void logOTelEvent('feedback_survey', {
-      event_type: 'transcript_prompt_appeared',
-      appearance_id: appearanceId_1,
-      survey_type: surveyType
     });
   }, [surveyType]);
   const onTranscriptSelect = useCallback(async (appearanceId_2: string, selected_1: TranscriptShareResponse, surveyResponse_0: FeedbackSurveyResponse | null): Promise<boolean> => {

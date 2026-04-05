@@ -11,7 +11,6 @@ import { getCodeEditToolDecisionCounter } from '../../bootstrap/state.js'
 import type { Tool as ToolType, ToolUseContext } from '../../Tool.js'
 import { getLanguageName } from '../../utils/cliHighlight.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
-import { logOTelEvent } from '../../utils/telemetry/events.js'
 import type {
   PermissionApprovalSource,
   PermissionRejectionSource,
@@ -225,12 +224,6 @@ function logPermissionDecision(
     source: sourceString,
     decision,
     timestamp: Date.now(),
-  })
-
-  void logOTelEvent('tool_decision', {
-    decision,
-    source: sourceString,
-    tool_name: sanitizeToolNameForAnalytics(tool.name),
   })
 }
 

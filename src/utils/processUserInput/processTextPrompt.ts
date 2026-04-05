@@ -9,8 +9,6 @@ import type {
 import { logEvent } from '../../services/analytics/index.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { createUserMessage } from '../messages.js'
-import { logOTelEvent, redactIfDisabled } from '../telemetry/events.js'
-import { startInteractionSpan } from '../telemetry/sessionTracing.js'
 import {
   matchesKeepGoingKeyword,
   matchesNegativeKeyword,
@@ -35,26 +33,6 @@ export function processTextPrompt(
     typeof input === 'string'
       ? input
       : input.find(block => block.type === 'text')?.text || ''
-  startInteractionSpan(userPromptText)
-
-  // Emit user_prompt OTEL event for both string (CLI) and array (SDK/VS Code)
-  // input shapes. Previously gated on `typeof input === 'string'`, so VS Code
-  // sessions never emitted user_prompt (anthropics/claude-code#33301).
-  // For array input, use the LAST text block: createUserContent pushes the
-  // user's message last (after any <ide_selection>/attachment context blocks),
-  // so .findLast gets the actual prompt. userPromptText (first block) is kept
-  // unchanged for startInteractionSpan to preserve existing span attributes.
-  const otelPromptText =
-    typeof input === 'string'
-      ? input
-      : input.findLast(block => block.type === 'text')?.text || ''
-  if (otelPromptText) {
-    void logOTelEvent('user_prompt', {
-      prompt_length: String(otelPromptText.length),
-      prompt: redactIfDisabled(otelPromptText),
-      'prompt.id': promptId,
-    })
-  }
 
   const isNegative = matchesNegativeKeyword(userPromptText)
   const isKeepGoing = matchesKeepGoingKeyword(userPromptText)

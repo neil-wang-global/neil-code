@@ -6,7 +6,6 @@ import { clearSpeculativeChecks } from '../../tools/BashTool/bashPermissions.js'
 import { clearClassifierApprovals } from '../../utils/classifierApprovals.js'
 import { resetGetMemoryFilesCache } from '../../utils/claudemd.js'
 import { clearSessionMessagesCache } from '../../utils/sessionStorage.js'
-import { clearBetaTracingState } from '../../utils/telemetry/betaSessionTracing.js'
 import { resetMicrocompactState } from './microCompact.js'
 
 /**
@@ -67,6 +66,5 @@ export function runPostCompactCleanup(querySource?: QuerySource): void {
   // model still has SkillTool in schema, invoked_skills preserves used
   // skills, and dynamic additions are handled by skillChangeDetector /
   // cacheUtils resets. See compactConversation() for full rationale.
-  clearBetaTracingState()
   clearSessionMessagesCache()
 }
