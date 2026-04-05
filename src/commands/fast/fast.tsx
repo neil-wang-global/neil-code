@@ -9,12 +9,10 @@ import { useKeybindings } from '../../keybindings/useKeybinding.js';
 import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from '../../services/analytics/index.js';
 import { type AppState, useAppState, useSetAppState } from '../../state/AppState.js';
 import type { LocalJSXCommandOnDone } from '../../types/command.js';
-import { clearFastModeCooldown, FAST_MODE_MODEL_DISPLAY, getFastModeModel, getFastModeRuntimeState, getFastModeUnavailableReason, isFastModeEnabled, isFastModeSupportedByModel, prefetchFastModeStatus } from '../../utils/fastMode.js';
-import { formatDuration } from '../../utils/format.js';
+import { FAST_MODE_MODEL_DISPLAY, getFastModeModel, getFastModeUnavailableReason, isFastModeEnabled, isFastModeSupportedByModel, prefetchFastModeStatus } from '../../utils/fastMode.js';
 import { formatModelPricing, getOpus46CostTier } from '../../utils/modelCost.js';
 import { updateSettingsForSource } from '../../utils/settings/settings.js';
 function applyFastMode(enable: boolean, setAppState: (f: (prev: AppState) => AppState) => void): void {
-  clearFastModeCooldown();
   updateSettingsForSource('userSettings', {
     fastMode: enable ? true : undefined
   });
@@ -48,15 +46,6 @@ export function FastModePicker(t0) {
   const initialFastMode = useAppState(_temp2);
   const setAppState = useSetAppState();
   const [enableFastMode, setEnableFastMode] = useState(initialFastMode ?? false);
-  let t1;
-  if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
-    t1 = getFastModeRuntimeState();
-    $[0] = t1;
-  } else {
-    t1 = $[0];
-  }
-  const runtimeState = t1;
-  const isCooldown = runtimeState.status === "cooldown";
   const isUnavailable = unavailableReason !== null;
   let t2;
   if ($[1] === Symbol.for("react.memo_cache_sentinel")) {
@@ -164,7 +153,7 @@ export function FastModePicker(t0) {
   useKeybindings(t6, t7);
   let t8;
   if ($[19] === Symbol.for("react.memo_cache_sentinel")) {
-    t8 = <Text><FastIcon cooldown={isCooldown} /> Fast mode (research preview)</Text>;
+    t8 = <Text><FastIcon /> Fast mode (research preview)</Text>;
     $[19] = t8;
   } else {
     t8 = $[19];
@@ -180,9 +169,7 @@ export function FastModePicker(t0) {
   }
   let t10;
   if ($[22] !== enableFastMode || $[23] !== unavailableReason) {
-    t10 = unavailableReason ? <Box marginLeft={2}><Text color="error">{unavailableReason}</Text></Box> : <><Box flexDirection="column" gap={0} marginLeft={2}><Box flexDirection="row" gap={2}><Text bold={true}>Fast mode</Text><Text color={enableFastMode ? "fastMode" : undefined} bold={enableFastMode}>{enableFastMode ? "ON " : "OFF"}</Text><Text dimColor={true}>{pricing}</Text></Box></Box>{isCooldown && runtimeState.status === "cooldown" && <Box marginLeft={2}><Text color="warning">{runtimeState.reason === "overloaded" ? "Fast mode overloaded and is temporarily unavailable" : "You've hit your fast limit"}{" \xB7 resets in "}{formatDuration(runtimeState.resetAt - Date.now(), {
-            hideTrailingZeros: true
-          })}</Text></Box>}</>;
+    t10 = unavailableReason ? <Box marginLeft={2}><Text color="error">{unavailableReason}</Text></Box> : <><Box flexDirection="column" gap={0} marginLeft={2}><Box flexDirection="row" gap={2}><Text bold={true}>Fast mode</Text><Text color={enableFastMode ? "fastMode" : undefined} bold={enableFastMode}>{enableFastMode ? "ON " : "OFF"}</Text><Text dimColor={true}>{pricing}</Text></Box></Box></>;
     $[22] = enableFastMode;
     $[23] = unavailableReason;
     $[24] = t10;
