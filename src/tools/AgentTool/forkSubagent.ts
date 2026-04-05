@@ -1,4 +1,3 @@
-import { feature } from 'bun:bundle'
 import type { BetaToolUseBlock } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
 import { randomUUID } from 'crypto'
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
@@ -16,26 +15,18 @@ import { createUserMessage } from '../../utils/messages.js'
 import type { BuiltInAgentDefinition } from './loadAgentsDir.js'
 
 /**
- * Fork subagent feature gate.
+ * Fork subagent runtime gate.
  *
- * When enabled:
- * - `subagent_type` becomes optional on the Agent tool schema
- * - Omitting `subagent_type` triggers an implicit fork: the child inherits
- *   the parent's full conversation context and system prompt
- * - All agent spawns run in the background (async) for a unified
- *   `<task-notification>` interaction model
- * - `/fork <directive>` slash command is available
- *
- * Mutually exclusive with coordinator mode — coordinator already owns the
- * orchestration role and has its own delegation model.
+ * Fork subagent is always available, except:
+ * - Coordinator mode — coordinator already owns the orchestration role
+ *   and has its own delegation model.
+ * - Non-interactive sessions — fork requires a terminal for permission
+ *   bubbling and task notifications.
  */
 export function isForkSubagentEnabled(): boolean {
-  if (feature('FORK_SUBAGENT')) {
-    if (isCoordinatorMode()) return false
-    if (getIsNonInteractiveSession()) return false
-    return true
-  }
-  return false
+  if (isCoordinatorMode()) return false
+  if (getIsNonInteractiveSession()) return false
+  return true
 }
 
 /** Synthetic agent type name used for analytics when the fork path fires. */

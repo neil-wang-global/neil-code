@@ -187,8 +187,7 @@ export function UserTextMessage(t0) {
     }
     return t1;
   }
-  if (feature("FORK_SUBAGENT")) {
-    if (param.text.includes("<fork-boilerplate>")) {
+  if (param.text.includes("<fork-boilerplate>")) {
       let t1;
       if ($[32] === Symbol.for("react.memo_cache_sentinel")) {
         t1 = require("./UserForkBoilerplateMessage.js");
@@ -210,7 +209,6 @@ export function UserTextMessage(t0) {
       }
       return t2;
     }
-  }
   if (feature("UDS_INBOX")) {
     if (param.text.includes("<cross-session-message")) {
       let t1;

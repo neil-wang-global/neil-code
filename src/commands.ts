@@ -110,11 +110,9 @@ const peersCmd = feature('UDS_INBOX')
       require('./commands/peers/index.js') as typeof import('./commands/peers/index.js')
     ).default
   : null
-const forkCmd = feature('FORK_SUBAGENT')
-  ? (
+const forkCmd = (
       require('./commands/fork/index.js') as typeof import('./commands/fork/index.js')
     ).default
-  : null
 /* eslint-enable @typescript-eslint/no-require-imports */
 import buddy from './commands/buddy/index.js'
 import thinkback from './commands/thinkback/index.js'
@@ -314,7 +312,7 @@ const COMMANDS = memoize((): Command[] => [
   version,
   vim,
   ...(webCmd ? [webCmd] : []),
-  ...(forkCmd ? [forkCmd] : []),
+  forkCmd,
   buddy,
   ...(proactive ? [proactive] : []),
   ...(briefCommand ? [briefCommand] : []),
