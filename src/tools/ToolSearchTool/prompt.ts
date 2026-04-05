@@ -70,10 +70,10 @@ export function isDeferredTool(tool: Tool): boolean {
   // Never defer ToolSearch itself — the model needs it to load everything else
   if (tool.name === TOOL_SEARCH_TOOL_NAME) return false
 
-  // Fork-first experiment: Agent must be available turn 1, not behind ToolSearch.
+  // Fork-first: Agent must be available turn 1, not behind ToolSearch.
   // Lazy require: static import of forkSubagent → coordinatorMode creates a cycle
   // through constants/tools.ts at module init.
-  if (feature('FORK_SUBAGENT') && tool.name === AGENT_TOOL_NAME) {
+  if (tool.name === AGENT_TOOL_NAME) {
     type ForkMod = typeof import('../AgentTool/forkSubagent.js')
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const m = require('../AgentTool/forkSubagent.js') as ForkMod
