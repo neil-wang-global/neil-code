@@ -4,8 +4,10 @@ import { BLACK_CIRCLE, BULLET_OPERATOR } from '../constants/figures.js';
 import { Box, Text } from '../ink.js';
 import type { SkillUpdate } from '../utils/hooks/skillImprovement.js';
 import { normalizeFullWidthDigits } from '../utils/stringUtils.js';
-import { isValidResponseInput } from './FeedbackSurvey/FeedbackSurveyView.js';
-import type { FeedbackSurveyResponse } from './FeedbackSurvey/utils.js';
+
+type FeedbackSurveyResponse = 'good' | 'dismissed';
+const RESPONSE_INPUTS = ['0', '1', '2', '3'] as const;
+const isValidResponseInput = (input: string): input is (typeof RESPONSE_INPUTS)[number] => (RESPONSE_INPUTS as readonly string[]).includes(input);
 type Props = {
   isOpen: boolean;
   skillName: string;

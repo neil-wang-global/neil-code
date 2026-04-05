@@ -7,7 +7,7 @@ import type { Message } from '../../types/message.js';
 // Shared function to render the Feedback component
 export function renderFeedbackComponent(onDone: (result?: string, options?: {
   display?: CommandResultDisplay;
-}) => void, abortSignal: AbortSignal, messages: Message[], initialDescription: string = '', backgroundTasks: {
+}) => void, _abortSignal: AbortSignal, messages: Message[], initialDescription: string = '', _backgroundTasks: {
   [taskId: string]: {
     type: string;
     identity?: {
@@ -16,7 +16,7 @@ export function renderFeedbackComponent(onDone: (result?: string, options?: {
     messages?: Message[];
   };
 } = {}): React.ReactNode {
-  return <Feedback abortSignal={abortSignal} messages={messages} initialDescription={initialDescription} onDone={onDone} backgroundTasks={backgroundTasks} />;
+  return <Feedback messages={messages} initialDescription={initialDescription} onDone={onDone} />;
 }
 export async function call(onDone: LocalJSXCommandOnDone, context: LocalJSXCommandContext, args?: string): Promise<React.ReactNode> {
   const initialDescription = args || '';
