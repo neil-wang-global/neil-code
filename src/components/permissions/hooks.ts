@@ -20,7 +20,12 @@ import { SandboxManager } from 'src/utils/sandbox/sandbox-adapter.js'
 import type { ToolUseConfirm } from '../../components/permissions/PermissionRequest.js'
 import { env } from '../../utils/env.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
-import { type CompletionType, logUnaryEvent } from '../../utils/unaryLogging.js'
+
+type CompletionType =
+  | 'str_replace_single'
+  | 'str_replace_multi'
+  | 'write_file_single'
+  | 'tool_use_single'
 
 export type UnaryEvent = {
   completion_type: CompletionType
@@ -185,14 +190,5 @@ export function usePermissionRequestLogging(
       }
     }
 
-    void logUnaryEvent({
-      completion_type: unaryEvent.completion_type,
-      event: 'response',
-      metadata: {
-        language_name: unaryEvent.language_name,
-        message_id: toolUseConfirm.assistantMessage.message.id,
-        platform: env.platform,
-      },
-    })
   }, [toolUseConfirm, unaryEvent])
 }

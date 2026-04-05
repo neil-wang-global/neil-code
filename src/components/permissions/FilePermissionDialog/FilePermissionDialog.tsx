@@ -7,7 +7,7 @@ import { getLanguageName } from '../../../utils/cliHighlight.js';
 import { getCwd } from '../../../utils/cwd.js';
 import { getFsImplementation, safeResolvePath } from '../../../utils/fsOperations.js';
 import { expandPath } from '../../../utils/path.js';
-import type { CompletionType } from '../../../utils/unaryLogging.js';
+type CompletionType = 'str_replace_single' | 'str_replace_multi' | 'write_file_single' | 'tool_use_single';
 import { Select } from '../../CustomSelect/index.js';
 import { ShowInIDEPrompt } from '../../ShowInIDEPrompt.js';
 import { usePermissionRequestLogging } from '../hooks.js';

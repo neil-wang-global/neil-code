@@ -1,25 +1,19 @@
-import { getHostPlatformForAnalytics } from '../../utils/env.js'
-import { type CompletionType, logUnaryEvent } from '../../utils/unaryLogging.js'
 import type { ToolUseConfirm } from './PermissionRequest.js'
+
+type CompletionType =
+  | 'str_replace_single'
+  | 'str_replace_multi'
+  | 'write_file_single'
+  | 'tool_use_single'
 
 export function logUnaryPermissionEvent(
   completion_type: CompletionType,
-  {
-    assistantMessage: {
-      message: { id: message_id },
-    },
-  }: ToolUseConfirm,
+  toolUseConfirm: ToolUseConfirm,
   event: 'accept' | 'reject',
   hasFeedback?: boolean,
 ): void {
-  void logUnaryEvent({
-    completion_type,
-    event,
-    metadata: {
-      language_name: 'none',
-      message_id,
-      platform: getHostPlatformForAnalytics(),
-      hasFeedback: hasFeedback ?? false,
-    },
-  })
+  void completion_type
+  void toolUseConfirm
+  void event
+  void hasFeedback
 }

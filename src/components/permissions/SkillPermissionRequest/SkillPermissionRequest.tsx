@@ -6,9 +6,7 @@ import { Box, Text } from '../../../ink.js';
 import { sanitizeToolNameForAnalytics } from '../../../services/analytics/metadata.js';
 import { SKILL_TOOL_NAME } from '../../../tools/SkillTool/constants.js';
 import { SkillTool } from '../../../tools/SkillTool/SkillTool.js';
-import { env } from '../../../utils/env.js';
 import { shouldShowAlwaysAllowOptions } from '../../../utils/permissions/permissionsLoader.js';
-import { logUnaryEvent } from '../../../utils/unaryLogging.js';
 import { type UnaryEvent, usePermissionRequestLogging } from '../hooks.js';
 import { PermissionDialog } from '../PermissionDialog.js';
 import { PermissionPrompt, type PermissionPromptOption, type ToolAnalyticsContext } from '../PermissionPrompt.js';
@@ -189,30 +187,12 @@ export function SkillPermissionRequest(props) {
       bb33: switch (value) {
         case "yes":
           {
-            logUnaryEvent({
-              completion_type: "tool_use_single",
-              event: "accept",
-              metadata: {
-                language_name: "none",
-                message_id: toolUseConfirm.assistantMessage.message.id,
-                platform: env.platform
-              }
-            });
             toolUseConfirm.onAllow(toolUseConfirm.input, [], feedback);
             onDone();
             break bb33;
           }
         case "yes-exact":
           {
-            logUnaryEvent({
-              completion_type: "tool_use_single",
-              event: "accept",
-              metadata: {
-                language_name: "none",
-                message_id: toolUseConfirm.assistantMessage.message.id,
-                platform: env.platform
-              }
-            });
             toolUseConfirm.onAllow(toolUseConfirm.input, [{
               type: "addRules",
               rules: [{
@@ -227,15 +207,6 @@ export function SkillPermissionRequest(props) {
           }
         case "yes-prefix":
           {
-            logUnaryEvent({
-              completion_type: "tool_use_single",
-              event: "accept",
-              metadata: {
-                language_name: "none",
-                message_id: toolUseConfirm.assistantMessage.message.id,
-                platform: env.platform
-              }
-            });
             const spaceIndex_0 = skill.indexOf(" ");
             const commandPrefix_0 = spaceIndex_0 > 0 ? skill.substring(0, spaceIndex_0) : skill;
             toolUseConfirm.onAllow(toolUseConfirm.input, [{
@@ -252,15 +223,6 @@ export function SkillPermissionRequest(props) {
           }
         case "no":
           {
-            logUnaryEvent({
-              completion_type: "tool_use_single",
-              event: "reject",
-              metadata: {
-                language_name: "none",
-                message_id: toolUseConfirm.assistantMessage.message.id,
-                platform: env.platform
-              }
-            });
             toolUseConfirm.onReject(feedback);
             onReject();
             onDone();
@@ -279,15 +241,6 @@ export function SkillPermissionRequest(props) {
   let t11;
   if ($[29] !== onDone || $[30] !== onReject || $[31] !== toolUseConfirm) {
     t11 = () => {
-      logUnaryEvent({
-        completion_type: "tool_use_single",
-        event: "reject",
-        metadata: {
-          language_name: "none",
-          message_id: toolUseConfirm.assistantMessage.message.id,
-          platform: env.platform
-        }
-      });
       toolUseConfirm.onReject();
       onReject();
       onDone();

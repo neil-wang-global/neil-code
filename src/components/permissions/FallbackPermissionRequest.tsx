@@ -3,10 +3,8 @@ import React, { useCallback, useMemo } from 'react';
 import { getOriginalCwd } from '../../bootstrap/state.js';
 import { Box, Text, useTheme } from '../../ink.js';
 import { sanitizeToolNameForAnalytics } from '../../services/analytics/metadata.js';
-import { env } from '../../utils/env.js';
 import { shouldShowAlwaysAllowOptions } from '../../utils/permissions/permissionsLoader.js';
 import { truncateToLines } from '../../utils/stringUtils.js';
-import { logUnaryEvent } from '../../utils/unaryLogging.js';
 import { type UnaryEvent, usePermissionRequestLogging } from './hooks.js';
 import { PermissionDialog } from './PermissionDialog.js';
 import { PermissionPrompt, type PermissionPromptOption, type ToolAnalyticsContext } from './PermissionPrompt.js';
@@ -54,30 +52,12 @@ export function FallbackPermissionRequest(t0) {
       bb8: switch (value) {
         case "yes":
           {
-            logUnaryEvent({
-              completion_type: "tool_use_single",
-              event: "accept",
-              metadata: {
-                language_name: "none",
-                message_id: toolUseConfirm.assistantMessage.message.id,
-                platform: env.platform
-              }
-            });
             toolUseConfirm.onAllow(toolUseConfirm.input, [], feedback);
             onDone();
             break bb8;
           }
         case "yes-dont-ask-again":
           {
-            logUnaryEvent({
-              completion_type: "tool_use_single",
-              event: "accept",
-              metadata: {
-                language_name: "none",
-                message_id: toolUseConfirm.assistantMessage.message.id,
-                platform: env.platform
-              }
-            });
             toolUseConfirm.onAllow(toolUseConfirm.input, [{
               type: "addRules",
               rules: [{
@@ -91,15 +71,6 @@ export function FallbackPermissionRequest(t0) {
           }
         case "no":
           {
-            logUnaryEvent({
-              completion_type: "tool_use_single",
-              event: "reject",
-              metadata: {
-                language_name: "none",
-                message_id: toolUseConfirm.assistantMessage.message.id,
-                platform: env.platform
-              }
-            });
             toolUseConfirm.onReject(feedback);
             onReject();
             onDone();
@@ -117,15 +88,6 @@ export function FallbackPermissionRequest(t0) {
   let t4;
   if ($[9] !== onDone || $[10] !== onReject || $[11] !== toolUseConfirm) {
     t4 = () => {
-      logUnaryEvent({
-        completion_type: "tool_use_single",
-        event: "reject",
-        metadata: {
-          language_name: "none",
-          message_id: toolUseConfirm.assistantMessage.message.id,
-          platform: env.platform
-        }
-      });
       toolUseConfirm.onReject();
       onReject();
       onDone();

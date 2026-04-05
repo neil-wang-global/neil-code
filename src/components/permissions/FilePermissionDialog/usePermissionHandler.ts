@@ -9,13 +9,13 @@ import {
   FILE_EDIT_TOOL_NAME,
   GLOBAL_CLAUDE_FOLDER_PERMISSION_PATTERN,
 } from '../../../tools/FileEditTool/constants.js'
-import { env } from '../../../utils/env.js'
 import { generateSuggestions } from '../../../utils/permissions/filesystem.js'
 import type { PermissionUpdate } from '../../../utils/permissions/PermissionUpdateSchema.js'
-import {
-  type CompletionType,
-  logUnaryEvent,
-} from '../../../utils/unaryLogging.js'
+type CompletionType =
+  | 'str_replace_single'
+  | 'str_replace_multi'
+  | 'write_file_single'
+  | 'tool_use_single'
 import type { ToolUseConfirm } from '../PermissionRequest.js'
 import type {
   FileOperationType,
@@ -29,16 +29,11 @@ function logPermissionEvent(
   messageId: string,
   hasFeedback?: boolean,
 ): void {
-  void logUnaryEvent({
-    completion_type: completionType,
-    event,
-    metadata: {
-      language_name: languageName,
-      message_id: messageId,
-      platform: env.platform,
-      hasFeedback: hasFeedback ?? false,
-    },
-  })
+  void event
+  void completionType
+  void languageName
+  void messageId
+  void hasFeedback
 }
 
 export type PermissionHandlerParams = {

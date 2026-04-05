@@ -7,7 +7,11 @@ import {
 } from '../../../services/analytics/index.js'
 import { sanitizeToolNameForAnalytics } from '../../../services/analytics/metadata.js'
 import type { PermissionUpdate } from '../../../utils/permissions/PermissionUpdateSchema.js'
-import type { CompletionType } from '../../../utils/unaryLogging.js'
+type CompletionType =
+  | 'str_replace_single'
+  | 'str_replace_multi'
+  | 'write_file_single'
+  | 'tool_use_single'
 import type { ToolUseConfirm } from '../PermissionRequest.js'
 import {
   type FileOperationType,

@@ -29,7 +29,6 @@ import {
   fileHistoryEnabled,
   fileHistoryTrackEdit,
 } from '../../utils/fileHistory.js'
-import { logFileOperation } from '../../utils/fileOperationAnalytics.js'
 import {
   type LineEndingType,
   readFileSyncWithMetadata,
@@ -529,12 +528,6 @@ export const FileEditTool = buildTool({
       logEvent('tengu_write_claudemd', {})
     }
     countLinesChanged(patch)
-
-    logFileOperation({
-      operation: 'edit',
-      tool: 'FileEditTool',
-      filePath: absoluteFilePath,
-    })
 
     logEvent('tengu_edit_string_lengths', {
       oldStringBytes: Buffer.byteLength(old_string, 'utf8'),

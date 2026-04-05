@@ -17,7 +17,6 @@ import { errorMessage, getErrnoCode } from '../errors.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { logError } from '../log.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
-import { classifyFetchError, logPluginFetch } from './fetchTelemetry.js'
 import { getPluginsDirectory } from './pluginDirectories.js'
 
 const INSTALL_COUNTS_CACHE_VERSION = 1
@@ -186,33 +185,15 @@ async function fetchInstallCountsFromGitHub(): Promise<
 > {
   logForDebugging(`Fetching install counts from ${INSTALL_COUNTS_URL}`)
 
-  const started = performance.now()
-  try {
-    const response = await axios.get<GitHubStatsResponse>(INSTALL_COUNTS_URL, {
-      timeout: 10000,
-    })
+  const response = await axios.get<GitHubStatsResponse>(INSTALL_COUNTS_URL, {
+    timeout: 10000,
+  })
 
-    if (!response.data?.plugins || !Array.isArray(response.data.plugins)) {
-      throw new Error('Invalid response format from install counts API')
-    }
-
-    logPluginFetch(
-      'install_counts',
-      INSTALL_COUNTS_URL,
-      'success',
-      performance.now() - started,
-    )
-    return response.data.plugins
-  } catch (error) {
-    logPluginFetch(
-      'install_counts',
-      INSTALL_COUNTS_URL,
-      'failure',
-      performance.now() - started,
-      classifyFetchError(error),
-    )
-    throw error
+  if (!response.data?.plugins || !Array.isArray(response.data.plugins)) {
+    throw new Error('Invalid response format from install counts API')
   }
+
+  return response.data.plugins
 }
 
 /**
@@ -227,7 +208,6 @@ export async function getInstallCounts(): Promise<Map<string, number> | null> {
   const cache = await loadInstallCountsCache()
   if (cache) {
     logForDebugging('Using cached install counts')
-    logPluginFetch('install_counts', INSTALL_COUNTS_URL, 'cache_hit', 0)
     const map = new Map<string, number>()
     for (const entry of cache.counts) {
       map.set(entry.plugin, entry.unique_installs)
