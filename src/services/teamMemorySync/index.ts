@@ -54,8 +54,6 @@ import {
 import { sleep } from '../../utils/sleep.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
-import { logEvent } from '../analytics/index.js'
-import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../analytics/metadata.js'
 import { getRetryDelay } from '../api/withRetry.js'
 import { scanForSecrets } from './secretScanner.js'
 import {
@@ -658,11 +656,6 @@ async function readLocalTeamMemory(maxEntries: number | null): Promise<{
       `team-memory-sync: ${keys.length} local entries exceeds server cap of ${maxEntries}; ${dropped.length} file(s) will NOT sync: ${dropped.join(', ')}. Consider consolidating or removing some team memory files.`,
       { level: 'warn' },
     )
-    logEvent('tengu_team_mem_entries_capped', {
-      total_entries: keys.length,
-      dropped_count: dropped.length,
-      max_entries: maxEntries,
-    })
     const truncated: Record<string, string> = {}
     for (const key of keys.slice(0, maxEntries)) {
       truncated[key] = entries[key]!
@@ -932,16 +925,6 @@ export async function pushTeamMemory(
       `team-memory-sync: ${skippedSecrets.length} file(s) skipped due to detected secrets: ${summary}. Remove the secret(s) to enable sync for these files.`,
       { level: 'warn' },
     )
-    logEvent('tengu_team_mem_secret_skipped', {
-      file_count: skippedSecrets.length,
-      // Only log gitleaks rule IDs (not values, not paths — paths could
-      // leak repo structure). Comma-joined for compact single-field analytics.
-      rule_ids: skippedSecrets
-        .map(s => s.ruleId)
-        .join(
-          ',',
-        ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
   }
 
   // Hash each local entry once. The loop recomputes the delta each iteration
@@ -1202,17 +1185,8 @@ function logPull(
     status?: number
   },
 ): void {
-  logEvent('tengu_team_mem_sync_pull', {
-    success: outcome.success,
-    files_written: outcome.filesWritten ?? 0,
-    not_modified: outcome.notModified ?? false,
-    duration_ms: Date.now() - startTime,
-    ...(outcome.errorType && {
-      errorType:
-        outcome.errorType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    }),
-    ...(outcome.status && { status: outcome.status }),
-  })
+  void startTime
+  void outcome
 }
 
 function logPush(
@@ -1230,27 +1204,6 @@ function logPush(
     serverReceivedEntries?: number
   },
 ): void {
-  logEvent('tengu_team_mem_sync_push', {
-    success: outcome.success,
-    files_uploaded: outcome.filesUploaded ?? 0,
-    conflict: outcome.conflict ?? false,
-    conflict_retries: outcome.conflictRetries ?? 0,
-    duration_ms: Date.now() - startTime,
-    ...(outcome.errorType && {
-      errorType:
-        outcome.errorType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    }),
-    ...(outcome.status && { status: outcome.status }),
-    ...(outcome.putBatches && { put_batches: outcome.putBatches }),
-    ...(outcome.errorCode && {
-      error_code:
-        outcome.errorCode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    }),
-    ...(outcome.serverMaxEntries !== undefined && {
-      server_max_entries: outcome.serverMaxEntries,
-    }),
-    ...(outcome.serverReceivedEntries !== undefined && {
-      server_received_entries: outcome.serverReceivedEntries,
-    }),
-  })
+  void startTime
+  void outcome
 }

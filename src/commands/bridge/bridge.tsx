@@ -13,7 +13,6 @@ import { shouldShowRemoteCallout } from '../../components/RemoteCallout.js';
 import { useRegisterOverlay } from '../../context/overlayContext.js';
 import { Box, Text } from '../../ink.js';
 import { useKeybindings } from '../../keybindings/useKeybinding.js';
-import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from '../../services/analytics/index.js';
 import { useAppState, useSetAppState } from '../../state/AppState.js';
 import type { ToolUseContext } from '../../Tool.js';
 import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/command.js';
@@ -60,9 +59,6 @@ function BridgeToggle(t0) {
           return;
         }
         if (error) {
-          logEvent("tengu_bridge_command", {
-            action: "preflight_failed" as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-          });
           onDone(error, {
             display: "system"
           });
@@ -84,9 +80,6 @@ function BridgeToggle(t0) {
           });
           return;
         }
-        logEvent("tengu_bridge_command", {
-          action: "connect" as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-        });
         setAppState(prev_0 => {
           if (prev_0.replBridgeEnabled && !prev_0.replBridgeOutboundOnly) {
             return prev_0;
@@ -194,9 +187,6 @@ function BridgeDisconnectDialog(t0) {
   if ($[4] !== onDone || $[5] !== setAppState) {
     t3 = function handleDisconnect() {
       setAppState(_temp7);
-      logEvent("tengu_bridge_command", {
-        action: "disconnect" as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      });
       onDone(REMOTE_CONTROL_DISCONNECTED_MSG, {
         display: "system"
       });

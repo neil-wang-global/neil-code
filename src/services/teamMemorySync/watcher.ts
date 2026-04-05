@@ -20,10 +20,6 @@ import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { getGithubRepo } from '../../utils/git.js'
 import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../analytics/index.js'
-import {
   createSyncState,
   isTeamMemorySyncAvailable,
   pullTeamMemory,
@@ -109,11 +105,6 @@ async function executePush(): Promise<void> {
           `team-memory-watcher: suppressing retry until next unlink or session restart (${pushSuppressedReason})`,
           { level: 'warn' },
         )
-        logEvent('tengu_team_mem_push_suppressed', {
-          reason:
-            pushSuppressedReason as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          ...(result.httpStatus && { status: result.httpStatus }),
-        })
       }
     }
   } catch (e) {
@@ -294,14 +285,6 @@ export async function startTeamMemoryWatcher(): Promise<void> {
   // and the alternative (lazy start on notifyTeamMemoryWrite) creates
   // a bootstrap dead zone for fresh repos.
   await startFileWatcher(getTeamMemPath())
-
-  logEvent('tengu_team_mem_sync_started', {
-    initial_pull_success: initialPullSuccess,
-    initial_files_pulled: initialFilesPulled,
-    // Kept for dashboard continuity; now always true when this event fires.
-    watcher_started: true,
-    server_has_content: serverHasContent,
-  })
 }
 
 /**

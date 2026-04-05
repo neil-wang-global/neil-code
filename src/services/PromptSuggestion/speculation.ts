@@ -44,10 +44,6 @@ import { extractReadFilesFromMessages } from '../../utils/queryHelpers.js'
 import { getTranscriptPath } from '../../utils/sessionStorage.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../analytics/index.js'
-import {
   generateSuggestion,
   getPromptVariant,
   getSuggestionSuppressReason,
@@ -130,26 +126,13 @@ function logSpeculation(
   boundary: CompletionBoundary | null,
   extras?: Record<string, string | number | boolean | undefined>,
 ): void {
-  logEvent('tengu_speculation', {
-    speculation_id:
-      id as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    outcome:
-      outcome as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    duration_ms: Date.now() - startTime,
-    suggestion_length: suggestionLength,
-    tools_executed: countToolsInMessages(messages),
-    completed: boundary !== null,
-    boundary_type: boundary?.type as
-      | AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      | undefined,
-    boundary_tool: getBoundaryTool(boundary) as
-      | AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      | undefined,
-    boundary_detail: getBoundaryDetail(boundary) as
-      | AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      | undefined,
-    ...extras,
-  })
+  void id
+  void outcome
+  void startTime
+  void suggestionLength
+  void messages
+  void boundary
+  void extras
 }
 
 function countToolsInMessages(messages: Message[]): number {
@@ -700,12 +683,8 @@ export async function startSpeculation(
       null,
       {
         error_type: error instanceof Error ? error.name : 'Unknown',
-        error_message: errorMessage(error).slice(
-          0,
-          200,
-        ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        error_phase:
-          'start' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        error_message: errorMessage(error).slice(0, 200),
+        error_phase: 'start',
         is_pipelined: isPipelined,
       },
     )
@@ -974,12 +953,8 @@ export async function handleSpeculationAccept(
       speculationState.boundary,
       {
         error_type: error instanceof Error ? error.name : 'Unknown',
-        error_message: errorMessage(error).slice(
-          0,
-          200,
-        ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        error_phase:
-          'accept' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        error_message: errorMessage(error).slice(0, 200),
+        error_phase: 'accept',
         is_pipelined: speculationState.isPipelined,
       },
     )

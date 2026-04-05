@@ -8,8 +8,6 @@ import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
 import { logError } from '../utils/log.js'
 import { getSmallFastModel } from '../utils/model/model.js'
 import { isEssentialTrafficOnly } from '../utils/privacyLevel.js'
-import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from './analytics/index.js'
-import { logEvent } from './analytics/index.js'
 import { getAPIMetadata } from './api/claude.js'
 import { getAnthropicClient } from './api/client.js'
 import {
@@ -184,16 +182,6 @@ export const statusListeners: Set<StatusChangeListener> = new Set()
 export function emitStatusChange(limits: ClaudeAILimits) {
   currentLimits = limits
   statusListeners.forEach(listener => listener(limits))
-  const hoursTillReset = Math.round(
-    (limits.resetsAt ? limits.resetsAt - Date.now() / 1000 : 0) / (60 * 60),
-  )
-
-  logEvent('tengu_claudeai_limits_status_changed', {
-    status:
-      limits.status as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    unifiedRateLimitFallbackAvailable: limits.unifiedRateLimitFallbackAvailable,
-    hoursTillReset,
-  })
 }
 
 async function makeTestQuery() {

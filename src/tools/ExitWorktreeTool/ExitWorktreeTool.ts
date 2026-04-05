@@ -1,12 +1,3 @@
-import { z } from 'zod/v4'
-import {
-  getOriginalCwd,
-  getProjectRoot,
-  setOriginalCwd,
-  setProjectRoot,
-} from '../../bootstrap/state.js'
-import { clearSystemPromptSections } from '../../constants/systemPromptSections.js'
-import { logEvent } from '../../services/analytics/index.js'
 import type { Tool } from '../../Tool.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { count } from '../../utils/array.js'
@@ -262,11 +253,6 @@ export const ExitWorktreeTool: Tool<InputSchema, Output> = buildTool({
       await keepWorktree()
       restoreSessionToOriginalCwd(originalCwd, projectRootIsWorktree)
 
-      logEvent('tengu_worktree_kept', {
-        mid_session: true,
-        commits,
-        changed_files: changedFiles,
-      })
 
       const tmuxNote = tmuxSessionName
         ? ` Tmux session ${tmuxSessionName} is still running; reattach with: tmux attach -t ${tmuxSessionName}`
@@ -290,11 +276,6 @@ export const ExitWorktreeTool: Tool<InputSchema, Output> = buildTool({
     await cleanupWorktree()
     restoreSessionToOriginalCwd(originalCwd, projectRootIsWorktree)
 
-    logEvent('tengu_worktree_removed', {
-      mid_session: true,
-      commits,
-      changed_files: changedFiles,
-    })
 
     const discardParts: string[] = []
     if (commits > 0) {

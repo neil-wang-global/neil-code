@@ -1,7 +1,6 @@
 import { c as _c } from "react/compiler-runtime";
 import partition from 'lodash-es/partition.js';
 import React, { useCallback } from 'react';
-import { logEvent } from 'src/services/analytics/index.js';
 import { Box, Text } from '../ink.js';
 import { getSettings_DEPRECATED, updateSettingsForSource } from '../utils/settings/settings.js';
 import { ConfigurableShortcutHint } from './ConfigurableShortcutHint.js';
@@ -27,10 +26,6 @@ export function MCPServerMultiselectDialog(t0) {
       const enabledServers = currentSettings.enabledMcpjsonServers || [];
       const disabledServers = currentSettings.disabledMcpjsonServers || [];
       const [approvedServers, rejectedServers] = partition(serverNames, server => selectedServers.includes(server));
-      logEvent("tengu_mcp_multidialog_choice", {
-        approved: approvedServers.length,
-        rejected: rejectedServers.length
-      });
       if (approvedServers.length > 0) {
         const newEnabledServers = [...new Set([...enabledServers, ...approvedServers])];
         updateSettingsForSource("localSettings", {

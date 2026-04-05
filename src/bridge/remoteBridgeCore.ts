@@ -54,14 +54,9 @@ import {
 import { logBridgeSkip } from './debugUtils.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
-import { isInProtectedNamespace } from '../utils/envUtils.js'
 import { errorMessage } from '../utils/errors.js'
 import { sleep } from '../utils/sleep.js'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../services/analytics/index.js'
 import type { ReplBridgeHandle, BridgeState } from './replBridge.js'
 import type { Message } from '../types/message.js'
 import type { SDKMessage } from '../entrypoints/agentSdkTypes.js'
@@ -298,14 +293,8 @@ export async function initEnvLessBridgeCore(
   // before cfg.connect_timeout_ms, onConnectTimeout emits — the only
   // signal for the `started → (silence)` gap.
   let connectDeadline: ReturnType<typeof setTimeout> | undefined
-  function onConnectTimeout(cause: ConnectCause): void {
+  function onConnectTimeout(_cause: ConnectCause): void {
     if (tornDown) return
-    logEvent('tengu_bridge_repl_connect_timeout', {
-      v2: true,
-      elapsed_ms: cfg.connect_timeout_ms,
-      cause:
-        cause as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
   }
 
   // ── 5. JWT refresh scheduler ────────────────────────────────────────────
@@ -382,11 +371,6 @@ export async function initEnvLessBridgeCore(
       clearTimeout(connectDeadline)
       logForDebugging('[remote-bridge] v2 transport connected')
       logForDiagnosticsNoPII('info', 'bridge_repl_v2_transport_connected')
-      logEvent('tengu_bridge_repl_ws_connected', {
-        v2: true,
-        cause:
-          connectCause as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      })
 
       if (!initialFlushDone && initialMessages && initialMessages.length > 0) {
         initialFlushDone = true
@@ -451,7 +435,6 @@ export async function initEnvLessBridgeCore(
       clearTimeout(connectDeadline)
       if (tornDown) return
       logForDebugging(`[remote-bridge] v2 transport closed (code=${code})`)
-      logEvent('tengu_bridge_repl_ws_closed', { code, v2: true })
       // onClose fires only for TERMINAL failures: 401 (JWT invalid),
       // 4090 (CCR epoch mismatch), 4091 (CCR init failed), or SSE 10-min
       // reconnect budget exhausted. Transient disconnects are handled
@@ -715,49 +698,10 @@ export async function initEnvLessBridgeCore(
 
     transport.close()
 
-    const archiveStatus: ArchiveTelemetryStatus =
-      status === 'no_token'
-        ? 'skipped_no_token'
-        : status === 'timeout' || status === 'error'
-          ? 'network_error'
-          : status >= 500
-            ? 'server_5xx'
-            : status >= 400
-              ? 'server_4xx'
-              : 'ok'
-
     logForDebugging(`[remote-bridge] Torn down (archive=${status})`)
     logForDiagnosticsNoPII('info', 'bridge_repl_v2_teardown')
-    logEvent(
-      feature('CCR_MIRROR') && outboundOnly
-        ? 'tengu_ccr_mirror_teardown'
-        : 'tengu_bridge_repl_teardown',
-      {
-        v2: true,
-        archive_status:
-          archiveStatus as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        archive_ok: typeof status === 'number' && status < 400,
-        archive_http_status: typeof status === 'number' ? status : undefined,
-        archive_timeout: status === 'timeout',
-        archive_no_token: status === 'no_token',
-      },
-    )
   }
   const unregister = registerCleanup(teardown)
-
-  if (feature('CCR_MIRROR') && outboundOnly) {
-    logEvent('tengu_ccr_mirror_started', {
-      v2: true,
-      expires_in_s: credentials.expires_in,
-    })
-  } else {
-    logEvent('tengu_bridge_repl_started', {
-      has_initial_messages: !!(initialMessages && initialMessages.length > 0),
-      v2: true,
-      expires_in_s: credentials.expires_in,
-      inProtectedNamespace: isInProtectedNamespace(),
-    })
-  }
 
   // ── 10. Handle ──────────────────────────────────────────────────────────
   return {
@@ -953,13 +897,6 @@ type ArchiveStatus = number | 'timeout' | 'error' | 'no_token'
 // _teardown predate this and are redundant with it (except archive_timeout,
 // which distinguishes ECONNABORTED from other network errors — both map to
 // 'network_error' here since the dominant cause in a 1.5s window is timeout).
-type ArchiveTelemetryStatus =
-  | 'ok'
-  | 'skipped_no_token'
-  | 'network_error'
-  | 'server_4xx'
-  | 'server_5xx'
-
 async function archiveSession(
   sessionId: string,
   baseUrl: string,

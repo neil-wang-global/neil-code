@@ -10,7 +10,6 @@ import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithK
 import { Box, Text } from '../../ink.js';
 import { useKeybinding } from '../../keybindings/useKeybinding.js';
 import { getAutoMemPath, isAutoMemoryEnabled } from '../../memdir/paths.js';
-import { logEvent } from '../../services/analytics/index.js';
 import { isAutoDreamEnabled } from '../../services/autoDream/config.js';
 import { readLastConsolidatedAt } from '../../services/autoDream/consolidationLock.js';
 import { useAppState } from '../../state/AppState.js';
@@ -208,9 +207,6 @@ export function MemoryFileSelector(t0) {
         autoMemoryEnabled: newValue
       });
       setAutoMemoryOn(newValue);
-      logEvent("tengu_auto_memory_toggled", {
-        enabled: newValue
-      });
     };
     $[12] = autoMemoryOn;
     $[13] = t5;
@@ -226,9 +222,6 @@ export function MemoryFileSelector(t0) {
         autoDreamEnabled: newValue_0
       });
       setAutoDreamOn(newValue_0);
-      logEvent("tengu_auto_dream_toggled", {
-        enabled: newValue_0
-      });
     };
     $[14] = autoDreamOn;
     $[15] = t6;

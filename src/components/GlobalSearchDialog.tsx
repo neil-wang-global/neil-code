@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useRegisterOverlay } from '../context/overlayContext.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { Text } from '../ink.js';
-import { logEvent } from '../services/analytics/index.js';
 import { getCwd } from '../utils/cwd.js';
 import { openFileInExternalEditor } from '../utils/editor.js';
 import { truncatePathMiddle, truncateToWidth } from '../utils/format.js';
@@ -159,10 +158,6 @@ export function GlobalSearchDialog(t0) {
   if ($[7] !== matches.length || $[8] !== onDone) {
     t7 = m_3 => {
       const opened = openFileInExternalEditor(resolvePath(getCwd(), m_3.file), m_3.line);
-      logEvent("tengu_global_search_select", {
-        result_count: matches.length,
-        opened_editor: opened
-      });
       onDone();
     };
     $[7] = matches.length;
@@ -176,10 +171,6 @@ export function GlobalSearchDialog(t0) {
   if ($[10] !== matches.length || $[11] !== onDone || $[12] !== onInsert) {
     t8 = (m_4, mention) => {
       onInsert(mention ? `@${m_4.file}#L${m_4.line} ` : `${m_4.file}:${m_4.line} `);
-      logEvent("tengu_global_search_insert", {
-        result_count: matches.length,
-        mention
-      });
       onDone();
     };
     $[10] = matches.length;

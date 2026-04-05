@@ -37,7 +37,6 @@ import { getSettingsFilePathForSource } from '../../utils/settings/settings.js'
 import { resetSettingsCache } from '../../utils/settings/settingsCache.js'
 import { sleep } from '../../utils/sleep.js'
 import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
-import { logEvent } from '../analytics/index.js'
 import { getRetryDelay } from '../api/withRetry.js'
 import {
   type SettingsSyncFetchResult,
@@ -62,7 +61,6 @@ export async function uploadUserSettingsInBackground(): Promise<void> {
       !isUsingOAuth()
     ) {
       logForDiagnosticsNoPII('info', 'settings_sync_upload_skipped')
-      logEvent('tengu_settings_sync_upload_skipped_ineligible', {})
       return
     }
 
@@ -70,7 +68,6 @@ export async function uploadUserSettingsInBackground(): Promise<void> {
     const result = await fetchUserSettings()
     if (!result.success) {
       logForDiagnosticsNoPII('warn', 'settings_sync_upload_fetch_failed')
-      logEvent('tengu_settings_sync_upload_fetch_failed', {})
       return
     }
 
@@ -85,17 +82,14 @@ export async function uploadUserSettingsInBackground(): Promise<void> {
     const entryCount = Object.keys(changedEntries).length
     if (entryCount === 0) {
       logForDiagnosticsNoPII('info', 'settings_sync_upload_no_changes')
-      logEvent('tengu_settings_sync_upload_skipped', {})
       return
     }
 
     const uploadResult = await uploadUserSettings(changedEntries)
     if (uploadResult.success) {
       logForDiagnosticsNoPII('info', 'settings_sync_upload_success')
-      logEvent('tengu_settings_sync_upload_success', { entryCount })
     } else {
       logForDiagnosticsNoPII('warn', 'settings_sync_upload_failed')
-      logEvent('tengu_settings_sync_upload_failed', { entryCount })
     }
   } catch {
     // Fail-open: log unexpected errors but don't block startup
@@ -153,7 +147,6 @@ async function doDownloadUserSettings(
   try {
     if (!isUsingOAuth()) {
       logForDiagnosticsNoPII('info', 'settings_sync_download_skipped')
-      logEvent('tengu_settings_sync_download_skipped', {})
       return false
     }
 
@@ -161,29 +154,24 @@ async function doDownloadUserSettings(
     const result = await fetchUserSettings(maxRetries)
     if (!result.success) {
       logForDiagnosticsNoPII('warn', 'settings_sync_download_fetch_failed')
-      logEvent('tengu_settings_sync_download_fetch_failed', {})
       return false
     }
 
     if (result.isEmpty) {
       logForDiagnosticsNoPII('info', 'settings_sync_download_empty')
-      logEvent('tengu_settings_sync_download_empty', {})
       return false
     }
 
     const entries = result.data!.content.entries
     const projectId = await getRepoRemoteHash()
-    const entryCount = Object.keys(entries).length
     logForDiagnosticsNoPII('info', 'settings_sync_download_applying', {
-      entryCount,
+      entryCount: Object.keys(entries).length,
     })
     await applyRemoteEntriesToLocal(entries, projectId)
-    logEvent('tengu_settings_sync_download_success', { entryCount })
     return true
   } catch {
     // Fail-open: log error but don't block CCR startup
     logForDiagnosticsNoPII('error', 'settings_sync_download_error')
-    logEvent('tengu_settings_sync_download_error', {})
     return false
   }
 }

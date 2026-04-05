@@ -4,7 +4,6 @@ import type { Command } from '../commands.js';
 import { DIAMOND_OPEN } from '../constants/figures.js';
 import { getRemoteSessionUrl } from '../constants/product.js';
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js';
-import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from '../services/analytics/index.js';
 import type { AppState } from '../state/AppStateStore.js';
 import { checkRemoteAgentEligibility, formatPreconditionError, RemoteAgentTask, type RemoteAgentTaskState, registerRemoteAgentTask } from '../tasks/RemoteAgentTask/RemoteAgentTask.js';
 import type { LocalJSXCommandCall } from '../types/command.js';
@@ -81,7 +80,6 @@ function startDetachedPoll(taskId: string, sessionId: string, url: string, getAp
         rejectCount,
         executionTarget
       } = await pollForApprovedExitPlanMode(sessionId, ULTRAPLAN_TIMEOUT_MS, phase => {
-        if (phase === 'needs_input') logEvent('tengu_ultraplan_awaiting_input', {});
         updateTaskState<RemoteAgentTaskState>(taskId, setAppState, t => {
           if (t.status !== 'running') return t;
           const next = phase === 'running' ? undefined : phase;
@@ -91,12 +89,6 @@ function startDetachedPoll(taskId: string, sessionId: string, url: string, getAp
           };
         });
       }, () => getAppState().tasks?.[taskId]?.status !== 'running');
-      logEvent('tengu_ultraplan_approved', {
-        duration_ms: Date.now() - started,
-        plan_length: plan.length,
-        reject_count: rejectCount,
-        execution_target: executionTarget as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      });
       if (executionTarget === 'remote') {
         // User chose "execute in CCR" in the browser PlanModal — the remote
         // session is now coding. Skip archive (ARCHIVE has no running-check,
@@ -143,11 +135,6 @@ function startDetachedPoll(taskId: string, sessionId: string, url: string, getAp
       const task = getAppState().tasks?.[taskId];
       if (task?.status !== 'running') return;
       failed = true;
-      logEvent('tengu_ultraplan_failed', {
-        duration_ms: Date.now() - started,
-        reason: (e instanceof UltraplanPollError ? e.reason : 'network_or_unknown') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        reject_count: e instanceof UltraplanPollError ? e.rejectCount : undefined
-      });
       enqueuePendingNotification({
         value: `Ultraplan failed: ${errorMessage(e)}\n\nSession: ${url}`,
         mode: 'task-notification'
@@ -262,9 +249,6 @@ export async function launchUltraplan(opts: {
     ultraplanLaunching
   } = getAppState();
   if (active || ultraplanLaunching) {
-    logEvent('tengu_ultraplan_create_failed', {
-      reason: (active ? 'already_polling' : 'already_launching') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-    });
     return buildAlreadyActiveMessage(active);
   }
   if (!blurb && !seedPlan) {
@@ -314,10 +298,6 @@ async function launchDetached(opts: {
     const model = getUltraplanModel();
     const eligibility = await checkRemoteAgentEligibility();
     if (!eligibility.eligible) {
-      logEvent('tengu_ultraplan_create_failed', {
-        reason: 'precondition' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        precondition_errors: eligibility.errors.map(e => e.type).join(',') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      });
       const reasons = eligibility.errors.map(formatPreconditionError).join('\n');
       enqueuePendingNotification({
         value: `ultraplan: cannot launch remote session —\n${reasons}`,
@@ -340,9 +320,6 @@ async function launchDetached(opts: {
       }
     });
     if (!session) {
-      logEvent('tengu_ultraplan_create_failed', {
-        reason: (bundleFailMsg ? 'bundle_fail' : 'teleport_null') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      });
       enqueuePendingNotification({
         value: `ultraplan: session creation failed${bundleFailMsg ? ` — ${bundleFailMsg}` : ''}. See --debug for details.`,
         mode: 'task-notification'
@@ -357,10 +334,6 @@ async function launchDetached(opts: {
       ultraplanLaunching: undefined
     }));
     onSessionReady?.(buildSessionReadyMessage(url));
-    logEvent('tengu_ultraplan_launched', {
-      has_seed_plan: Boolean(seedPlan),
-      model: model as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-    });
     // TODO(#23985): replace registerRemoteAgentTask + startDetachedPoll with
     // ExitPlanModeScanner inside startRemoteSessionPolling.
     const {
@@ -382,9 +355,6 @@ async function launchDetached(opts: {
     startDetachedPoll(taskId, session.id, url, getAppState, setAppState);
   } catch (e) {
     logError(e);
-    logEvent('tengu_ultraplan_create_failed', {
-      reason: 'unexpected_error' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-    });
     enqueuePendingNotification({
       value: `ultraplan: unexpected error — ${errorMessage(e)}`,
       mode: 'task-notification'
@@ -433,9 +403,6 @@ const call: LocalJSXCommandCall = async (onDone, context, args) => {
     ultraplanLaunching
   } = context.getAppState();
   if (active || ultraplanLaunching) {
-    logEvent('tengu_ultraplan_create_failed', {
-      reason: (active ? 'already_polling' : 'already_launching') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-    });
     onDone(buildAlreadyActiveMessage(active), {
       display: 'system'
     });

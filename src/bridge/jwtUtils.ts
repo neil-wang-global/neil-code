@@ -1,4 +1,3 @@
-import { logEvent } from '../services/analytics/index.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
 import { errorMessage } from '../utils/errors.js'
@@ -211,7 +210,6 @@ export function createTokenRefreshScheduler({
     logForDebugging(
       `[${label}:token] Refreshing token for sessionId=${sessionId}: new token prefix=${oauthToken.slice(0, 15)}…`,
     )
-    logEvent('tengu_bridge_token_refreshed', {})
     onRefresh(sessionId, oauthToken)
 
     // Schedule a follow-up refresh so long-running sessions stay authenticated.

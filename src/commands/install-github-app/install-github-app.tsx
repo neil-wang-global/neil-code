@@ -1,6 +1,5 @@
 import { execa } from 'execa';
 import React, { useCallback, useState } from 'react';
-import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from 'src/services/analytics/index.js';
 import { WorkflowMultiselectDialog } from '../../components/WorkflowMultiselectDialog.js';
 import { GITHUB_ACTION_SETUP_DOCS_URL } from '../../constants/github-app.js';
 import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js';
@@ -53,9 +52,6 @@ function InstallGitHubApp(props: {
     selectedApiKeyOption: (existingApiKey ? 'existing' : isAnthropicAuthEnabled() ? 'oauth' : 'new') as 'existing' | 'new' | 'oauth'
   });
   useExitOnCtrlCDWithKeybindings();
-  React.useEffect(() => {
-    logEvent('tengu_install_github_app_started', {});
-  }, []);
   const checkGitHubCLI = useCallback(async () => {
     const warnings: Warning[] = [];
 
@@ -111,9 +107,6 @@ function InstallGitHubApp(props: {
 
     // Check if in a git repo and get remote URL
     const currentRepo = (await getGithubRepo()) ?? '';
-    logEvent('tengu_install_github_app_step_completed', {
-      step: 'check-gh' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-    });
     setState(prev_0 => ({
       ...prev_0,
       warnings,
@@ -146,9 +139,6 @@ function InstallGitHubApp(props: {
         workflowExists: state.workflowExists,
         secretExists: state.secretExists
       });
-      logEvent('tengu_install_github_app_step_completed', {
-        step: 'creating' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      });
       setState(prev_5 => ({
         ...prev_5,
         step: 'success'
@@ -156,9 +146,6 @@ function InstallGitHubApp(props: {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to set up GitHub Actions';
       if (errorMessage.includes('workflow file already exists')) {
-        logEvent('tengu_install_github_app_error', {
-          reason: 'workflow_file_exists' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-        });
         setState(prev_2 => ({
           ...prev_2,
           step: 'error',
@@ -167,9 +154,6 @@ function InstallGitHubApp(props: {
           errorInstructions: ['The file .github/workflows/claude.yml already exists', 'You can either:', '  1. Delete the existing file and run this command again', '  2. Update the existing file manually using the template from:', `     ${GITHUB_ACTION_SETUP_DOCS_URL}`]
         }));
       } else {
-        logEvent('tengu_install_github_app_error', {
-          reason: 'setup_github_actions_failed' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-        });
         setState(prev_3 => ({
           ...prev_3,
           step: 'error',
@@ -267,9 +251,6 @@ function InstallGitHubApp(props: {
   }
   const handleSubmit = async () => {
     if (state.step === 'warnings') {
-      logEvent('tengu_install_github_app_step_completed', {
-        step: 'warnings' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      });
       setState(prev_11 => ({
         ...prev_11,
         step: 'install-app'
@@ -325,9 +306,6 @@ function InstallGitHubApp(props: {
           step: 'warnings'
         }));
       } else {
-        logEvent('tengu_install_github_app_step_completed', {
-          step: 'choose-repo' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-        });
         setState(prev_13 => ({
           ...prev_13,
           selectedRepoName: repoName_1,
@@ -337,9 +315,6 @@ function InstallGitHubApp(props: {
         setTimeout(openGitHubAppInstallation, 0);
       }
     } else if (state.step === 'install-app') {
-      logEvent('tengu_install_github_app_step_completed', {
-        step: 'install-app' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      });
       if (state.workflowExists) {
         setState(prev_14 => ({
           ...prev_14,
@@ -357,9 +332,6 @@ function InstallGitHubApp(props: {
       // Handled by the WorkflowMultiselectDialog component
       return;
     } else if (state.step === 'check-existing-secret') {
-      logEvent('tengu_install_github_app_step_completed', {
-        step: 'check-existing-secret' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      });
       if (state.useExistingSecret) {
         await runSetupGitHubActions(null, state.secretName);
       } else {
@@ -377,9 +349,6 @@ function InstallGitHubApp(props: {
       // If user selected 'existing' option, use the existing API key
       const apiKeyToUse = state.selectedApiKeyOption === 'existing' ? existingApiKey : state.apiKeyOrOAuthToken;
       if (!apiKeyToUse) {
-        logEvent('tengu_install_github_app_error', {
-          reason: 'api_key_missing' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-        });
         setState(prev_16 => ({
           ...prev_16,
           step: 'error',
@@ -403,25 +372,16 @@ function InstallGitHubApp(props: {
           return /^ANTHROPIC_API_KEY\s+/.test(line_0);
         });
         if (hasAnthropicKey_0) {
-          logEvent('tengu_install_github_app_step_completed', {
-            step: 'api-key' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-          });
           setState(prev_18 => ({
             ...prev_18,
             secretExists: true,
             step: 'check-existing-secret'
           }));
         } else {
-          logEvent('tengu_install_github_app_step_completed', {
-            step: 'api-key' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-          });
           // No existing secret, proceed to creating
           await runSetupGitHubActions(apiKeyToUse, state.secretName);
         }
       } else {
-        logEvent('tengu_install_github_app_step_completed', {
-          step: 'api-key' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-        });
         // Error checking secrets, proceed anyway
         await runSetupGitHubActions(apiKeyToUse, state.secretName);
       }
@@ -446,18 +406,12 @@ function InstallGitHubApp(props: {
     }));
   };
   const handleCreateOAuthToken = useCallback(() => {
-    logEvent('tengu_install_github_app_step_completed', {
-      step: 'api-key' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-    });
     setState(prev_22 => ({
       ...prev_22,
       step: 'oauth-flow'
     }));
   }, []);
   const handleOAuthSuccess = useCallback((token: string) => {
-    logEvent('tengu_install_github_app_step_completed', {
-      step: 'oauth-flow' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-    });
     setState(prev_23 => ({
       ...prev_23,
       apiKeyOrOAuthToken: token,
@@ -505,9 +459,6 @@ function InstallGitHubApp(props: {
       props.onDone('Installation cancelled by user');
       return;
     }
-    logEvent('tengu_install_github_app_step_completed', {
-      step: 'check-existing-workflow' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-    });
     setState(prev_29 => ({
       ...prev_29,
       workflowAction: action
@@ -527,9 +478,6 @@ function InstallGitHubApp(props: {
   };
   function handleDismissKeyDown(e: KeyboardEvent): void {
     e.preventDefault();
-    if (state.step === 'success') {
-      logEvent('tengu_install_github_app_completed', {});
-    }
     props.onDone(state.step === 'success' ? 'GitHub Actions setup complete!' : state.error ? `Couldn't install GitHub App: ${state.error}\nFor manual setup instructions, see: ${GITHUB_ACTION_SETUP_DOCS_URL}` : `GitHub App installation failed\nFor manual setup instructions, see: ${GITHUB_ACTION_SETUP_DOCS_URL}`);
   }
   switch (state.step) {
@@ -559,9 +507,6 @@ function InstallGitHubApp(props: {
         </Box>;
     case 'select-workflows':
       return <WorkflowMultiselectDialog defaultSelections={state.selectedWorkflows} onSubmit={selectedWorkflows => {
-        logEvent('tengu_install_github_app_step_completed', {
-          step: 'select-workflows' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-        });
         setState(prev_31 => ({
           ...prev_31,
           selectedWorkflows

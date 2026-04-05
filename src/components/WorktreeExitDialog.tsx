@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import type { CommandResultDisplay } from 'src/commands.js';
-import { logEvent } from 'src/services/analytics/index.js';
 import { logForDebugging } from 'src/utils/debug.js';
 import { Box, Text } from '../ink.js';
 import { execFileNoThrow } from '../utils/execFileNoThrow.js';
@@ -99,10 +98,6 @@ export function WorktreeExitDialog({
     const hasTmux = Boolean(worktreeSession.tmuxSessionName);
     if (value === 'keep' || value === 'keep-with-tmux') {
       setStatus('keeping');
-      logEvent('tengu_worktree_kept', {
-        commits: commitCount,
-        changed_files: changes.length
-      });
       await keepWorktree();
       process.chdir(worktreeSession.originalCwd);
       setCwd(worktreeSession.originalCwd);
@@ -116,10 +111,6 @@ export function WorktreeExitDialog({
       setStatus('done');
     } else if (value === 'keep-kill-tmux') {
       setStatus('keeping');
-      logEvent('tengu_worktree_kept', {
-        commits: commitCount,
-        changed_files: changes.length
-      });
       if (worktreeSession.tmuxSessionName) {
         await killTmuxSession(worktreeSession.tmuxSessionName);
       }
@@ -132,10 +123,6 @@ export function WorktreeExitDialog({
       setStatus('done');
     } else if (value === 'remove' || value === 'remove-with-tmux') {
       setStatus('removing');
-      logEvent('tengu_worktree_removed', {
-        commits: commitCount,
-        changed_files: changes.length
-      });
       if (worktreeSession.tmuxSessionName) {
         await killTmuxSession(worktreeSession.tmuxSessionName);
       }

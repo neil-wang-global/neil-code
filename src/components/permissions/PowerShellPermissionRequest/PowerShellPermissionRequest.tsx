@@ -2,8 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Text, useTheme } from '../../../ink.js';
 import { useKeybinding } from '../../../keybindings/useKeybinding.js';
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../../services/analytics/growthbook.js';
-import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from '../../../services/analytics/index.js';
-import { sanitizeToolNameForAnalytics } from '../../../services/analytics/metadata.js';
 import { getDestructiveCommandWarning } from '../../../tools/PowerShellTool/destructiveCommandWarning.js';
 import { PowerShellTool } from '../../../tools/PowerShellTool/PowerShellTool.js';
 import { isAllowlistedCommand } from '../../../tools/PowerShellTool/readOnlyValidation.js';
@@ -115,18 +113,6 @@ export function PowerShellPermissionRequest(props: PermissionRequestProps): Reac
     context: 'Confirmation'
   });
   function onSelect(value: string) {
-    // Map options to numeric values for analytics (strings not allowed in logEvent)
-    const optionIndex: Record<string, number> = {
-      yes: 1,
-      'yes-apply-suggestions': 2,
-      'yes-prefix-edited': 2,
-      no: 3
-    };
-    logEvent('tengu_permission_request_option_selected', {
-      option_index: optionIndex[value],
-      explainer_visible: explainerState.visible
-    });
-    const toolNameForAnalytics = sanitizeToolNameForAnalytics(toolUseConfirm.tool.name) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS;
     if (value === 'yes-prefix-edited') {
       const trimmedPrefix = (editablePrefix ?? '').trim();
       logUnaryPermissionEvent('tool_use_single', toolUseConfirm, 'accept');
@@ -152,14 +138,6 @@ export function PowerShellPermissionRequest(props: PermissionRequestProps): Reac
         {
           const trimmedFeedback = acceptFeedback.trim();
           logUnaryPermissionEvent('tool_use_single', toolUseConfirm, 'accept');
-          // Log accept submission with feedback context
-          logEvent('tengu_accept_submitted', {
-            toolName: toolNameForAnalytics,
-            isMcp: toolUseConfirm.tool.isMcp ?? false,
-            has_instructions: !!trimmedFeedback,
-            instructions_length: trimmedFeedback.length,
-            entered_feedback_mode: yesFeedbackModeEntered
-          });
           toolUseConfirm.onAllow(toolUseConfirm.input, [], trimmedFeedback || undefined);
           onDone();
           break;
@@ -176,15 +154,6 @@ export function PowerShellPermissionRequest(props: PermissionRequestProps): Reac
       case 'no':
         {
           const trimmedFeedback = rejectFeedback.trim();
-
-          // Log reject submission with feedback context
-          logEvent('tengu_reject_submitted', {
-            toolName: toolNameForAnalytics,
-            isMcp: toolUseConfirm.tool.isMcp ?? false,
-            has_instructions: !!trimmedFeedback,
-            instructions_length: trimmedFeedback.length,
-            entered_feedback_mode: noFeedbackModeEntered
-          });
 
           // Process rejection (with or without feedback)
           handleReject(trimmedFeedback || undefined);

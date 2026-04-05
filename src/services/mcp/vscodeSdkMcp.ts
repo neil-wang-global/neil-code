@@ -5,7 +5,6 @@ import {
   checkStatsigFeatureGate_CACHED_MAY_BE_STALE,
   getFeatureValue_CACHED_MAY_BE_STALE,
 } from '../analytics/growthbook.js'
-import { logEvent } from '../analytics/index.js'
 import type { ConnectedMCPServer, MCPServerConnection } from './types.js'
 
 // Mirror of AutoModeEnabledState in permissionSetup.ts — inlined because that
@@ -72,10 +71,8 @@ export function setupVscodeSdkMcp(sdkClients: MCPServerConnection[]): void {
       LogEventNotificationSchema(),
       async notification => {
         const { eventName, eventData } = notification.params
-        logEvent(
-          `tengu_vscode_${eventName}`,
-          eventData as { [key: string]: boolean | number | undefined },
-        )
+        void eventName
+        void eventData
       },
     )
 

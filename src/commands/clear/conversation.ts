@@ -10,10 +10,6 @@ import {
   getSessionId,
   regenerateSessionId,
 } from '../../bootstrap/state.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../../services/analytics/index.js'
 import type { AppState } from '../../state/AppState.js'
 import { isInProcessTeammateTask } from '../../tasks/InProcessTeammateTask/types.js'
 import {
@@ -72,16 +68,8 @@ export async function clearConversation({
     timeoutMs: sessionEndTimeoutMs,
   })
 
-  // Signal to inference that this conversation's cache can be evicted.
   const lastRequestId = getLastMainRequestId()
-  if (lastRequestId) {
-    logEvent('tengu_cache_eviction_hint', {
-      scope:
-        'conversation_clear' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      last_request_id:
-        lastRequestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
-  }
+  void lastRequestId
 
   // Compute preserved tasks up front so their per-agent state survives the
   // cache wipe below. A task is preserved unless it explicitly has

@@ -2,12 +2,11 @@ import { c as _c } from "react/compiler-runtime";
 import React, { useCallback, useMemo } from 'react';
 import { getOriginalCwd } from '../../bootstrap/state.js';
 import { Box, Text, useTheme } from '../../ink.js';
-import { sanitizeToolNameForAnalytics } from '../../services/analytics/metadata.js';
 import { shouldShowAlwaysAllowOptions } from '../../utils/permissions/permissionsLoader.js';
 import { truncateToLines } from '../../utils/stringUtils.js';
 import { type UnaryEvent, usePermissionRequestLogging } from './hooks.js';
 import { PermissionDialog } from './PermissionDialog.js';
-import { PermissionPrompt, type PermissionPromptOption, type ToolAnalyticsContext } from './PermissionPrompt.js';
+import { PermissionPrompt, type PermissionPromptOption } from './PermissionPrompt.js';
 import type { PermissionRequestProps } from './PermissionRequest.js';
 import { PermissionRuleExplanation } from './PermissionRuleExplanation.js';
 type FallbackOptionValue = 'yes' | 'yes-dont-ask-again' | 'no';
@@ -174,28 +173,6 @@ export function FallbackPermissionRequest(t0) {
     result = $[17];
   }
   const options = result;
-  let t8;
-  if ($[22] !== toolUseConfirm.tool.name) {
-    t8 = sanitizeToolNameForAnalytics(toolUseConfirm.tool.name);
-    $[22] = toolUseConfirm.tool.name;
-    $[23] = t8;
-  } else {
-    t8 = $[23];
-  }
-  const t9 = toolUseConfirm.tool.isMcp ?? false;
-  let t10;
-  if ($[24] !== t8 || $[25] !== t9) {
-    t10 = {
-      toolName: t8,
-      isMcp: t9
-    };
-    $[24] = t8;
-    $[25] = t9;
-    $[26] = t10;
-  } else {
-    t10 = $[26];
-  }
-  const toolAnalyticsContext = t10;
   let t11;
   if ($[27] !== theme || $[28] !== toolUseConfirm.input || $[29] !== toolUseConfirm.tool) {
     t11 = toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input as never, {
@@ -261,12 +238,11 @@ export function FallbackPermissionRequest(t0) {
     t17 = $[45];
   }
   let t18;
-  if ($[46] !== handleCancel || $[47] !== handleSelect || $[48] !== options || $[49] !== toolAnalyticsContext) {
-    t18 = <PermissionPrompt options={options} onSelect={handleSelect} onCancel={handleCancel} toolAnalyticsContext={toolAnalyticsContext} />;
+  if ($[46] !== handleCancel || $[47] !== handleSelect || $[48] !== options) {
+    t18 = <PermissionPrompt options={options} onSelect={handleSelect} onCancel={handleCancel} />;
     $[46] = handleCancel;
     $[47] = handleSelect;
     $[48] = options;
-    $[49] = toolAnalyticsContext;
     $[50] = t18;
   } else {
     t18 = $[50];

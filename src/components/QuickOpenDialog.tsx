@@ -6,7 +6,6 @@ import { useRegisterOverlay } from '../context/overlayContext.js';
 import { generateFileSuggestions } from '../hooks/fileSuggestions.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { Text } from '../ink.js';
-import { logEvent } from '../services/analytics/index.js';
 import { getCwd } from '../utils/cwd.js';
 import { openFileInExternalEditor } from '../utils/editor.js';
 import { truncatePathMiddle, truncateToWidth } from '../utils/format.js';
@@ -133,10 +132,6 @@ export function QuickOpenDialog(t0) {
   if ($[8] !== onDone || $[9] !== results.length) {
     t7 = p_1 => {
       const opened = openFileInExternalEditor(path.resolve(getCwd(), p_1));
-      logEvent("tengu_quick_open_select", {
-        result_count: results.length,
-        opened_editor: opened
-      });
       onDone();
     };
     $[8] = onDone;
@@ -150,10 +145,6 @@ export function QuickOpenDialog(t0) {
   if ($[11] !== onDone || $[12] !== onInsert || $[13] !== results.length) {
     t8 = (p_2, mention) => {
       onInsert(mention ? `@${p_2} ` : `${p_2} `);
-      logEvent("tengu_quick_open_insert", {
-        result_count: results.length,
-        mention
-      });
       onDone();
     };
     $[11] = onDone;

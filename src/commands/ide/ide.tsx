@@ -2,7 +2,6 @@ import { c as _c } from "react/compiler-runtime";
 import chalk from 'chalk';
 import * as path from 'path';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { logEvent } from 'src/services/analytics/index.js';
 import type { CommandResultDisplay, LocalJSXCommandContext } from '../../commands.js';
 import { Select } from '../../components/CustomSelect/index.js';
 import { Dialog } from '../../components/design-system/Dialog.js';
@@ -419,7 +418,6 @@ function InstallOnMount(t0) {
 export async function call(onDone: (result?: string, options?: {
   display?: CommandResultDisplay;
 }) => void, context: LocalJSXCommandContext, args: string): Promise<React.ReactNode | null> {
-  logEvent('tengu_ext_ide_command', {});
   const {
     options: {
       dynamicMcpConfig

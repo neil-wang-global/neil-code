@@ -1,8 +1,3 @@
-import { feature } from 'bun:bundle'
-import { z } from 'zod/v4'
-import { getKairosActive, getUserMsgOptIn } from '../../bootstrap/state.js'
-import { getFeatureValue_CACHED_WITH_REFRESH } from '../../services/analytics/growthbook.js'
-import { logEvent } from '../../services/analytics/index.js'
 import type { ValidationResult } from '../../Tool.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
@@ -185,10 +180,6 @@ export const BriefTool = buildTool({
   renderToolResultMessage,
   async call({ message, attachments, status }, context) {
     const sentAt = new Date().toISOString()
-    logEvent('tengu_brief_send', {
-      proactive: status === 'proactive',
-      attachment_count: attachments?.length ?? 0,
-    })
     if (!attachments || attachments.length === 0) {
       return { data: { message, sentAt } }
     }

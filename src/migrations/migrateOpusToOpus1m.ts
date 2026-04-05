@@ -1,4 +1,3 @@
-import { logEvent } from '../services/analytics/index.js'
 import {
   getDefaultMainLoopModelSetting,
   isOpus1mMergeEnabled,
@@ -38,6 +37,4 @@ export function migrateOpusToOpus1m(): void {
       ? undefined
       : migrated
   updateSettingsForSource('userSettings', { model: modelToSet })
-
-  logEvent('tengu_opus_to_opus1m_migration', {})
 }

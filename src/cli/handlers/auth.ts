@@ -4,10 +4,6 @@ import {
   clearAuthRelatedCaches,
   performLogout,
 } from '../../commands/logout/logout.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../../services/analytics/index.js'
 import { getSSLErrorHint } from '../../services/api/errorUtils.js'
 import { fetchAndStoreClaudeCodeFirstTokenDate } from '../../services/api/firstTokenDate.js'
 import {
@@ -78,13 +74,7 @@ export async function installOAuthTokens(tokens: OAuthTokens): Promise<void> {
 
   const storageResult = saveOAuthTokensIfNeeded(tokens)
   clearOAuthTokenCache()
-
-  if (storageResult.warning) {
-    logEvent('tengu_oauth_storage_warning', {
-      warning:
-        storageResult.warning as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
-  }
+  void storageResult
 
   // Roles and first-token-date may fail for limited-scope tokens (e.g.
   // inference-only from setup-token). They're not required for core auth.
@@ -152,8 +142,6 @@ export async function authLogin({
     const scopes = envScopes.split(/\s+/).filter(Boolean)
 
     try {
-      logEvent('tengu_login_from_refresh_token', {})
-
       const tokens = await refreshOAuthToken(envRefreshToken, { scopes })
       await installOAuthTokens(tokens)
 
@@ -170,9 +158,6 @@ export async function authLogin({
         return { ...current, hasCompletedOnboarding: true }
       })
 
-      logEvent('tengu_oauth_success', {
-        loginWithClaudeAi: shouldUseClaudeAIAuth(tokens.scopes),
-      })
       process.stdout.write('Login successful.\n')
       process.exit(0)
     } catch (err) {
@@ -190,8 +175,6 @@ export async function authLogin({
   const oauthService = new OAuthService()
 
   try {
-    logEvent('tengu_oauth_flow_start', { loginWithClaudeAi })
-
     const result = await oauthService.startOAuthFlow(
       async url => {
         process.stdout.write('Opening browser to sign in…\n')
@@ -212,8 +195,6 @@ export async function authLogin({
       process.stderr.write(orgResult.message + '\n')
       process.exit(1)
     }
-
-    logEvent('tengu_oauth_success', { loginWithClaudeAi })
 
     process.stdout.write('Login successful.\n')
     process.exit(0)

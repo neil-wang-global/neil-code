@@ -1,10 +1,6 @@
 import { feature } from 'bun:bundle'
 import { getShortcutDisplay } from '../keybindings/shortcutFormat.js'
 import { isExtractModeActive } from '../memdir/paths.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../services/analytics/index.js'
 import type { ToolUseContext } from '../Tool.js'
 import type { HookProgress } from '../types/hooks.js'
 import type {
@@ -281,12 +277,6 @@ export async function* handleStopHooks(
 
       // Check if we were aborted during hook execution
       if (toolUseContext.abortController.signal.aborted) {
-        logEvent('tengu_pre_stop_hooks_cancelled', {
-          queryChainId: toolUseContext.queryTracking
-            ?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-
-          queryDepth: toolUseContext.queryTracking?.depth,
-        })
         yield createUserInterruptionMessage({
           toolUse: false,
         })
@@ -454,14 +444,6 @@ export async function* handleStopHooks(
 
     return { blockingErrors: [], preventContinuation: false }
   } catch (error) {
-    const durationMs = Date.now() - hookStartTime
-    logEvent('tengu_stop_hook_error', {
-      duration: durationMs,
-
-      queryChainId: toolUseContext.queryTracking
-        ?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      queryDepth: toolUseContext.queryTracking?.depth,
-    })
     // Yield a system message that is not visible to the model for the user
     // to debug their hook.
     yield createSystemMessage(

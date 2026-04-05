@@ -8,13 +8,13 @@ import {
 } from '@modelcontextprotocol/sdk/client/auth.js'
 import {
   InvalidGrantError,
-  OAuthError,
   ServerError,
   TemporarilyUnavailableError,
   TooManyRequestsError,
 } from '@modelcontextprotocol/sdk/server/auth/errors.js'
 import {
   type AuthorizationServerMetadata,
+  OAuthError,
   type OAuthClientInformation,
   type OAuthClientInformationFull,
   type OAuthClientMetadata,
@@ -25,7 +25,7 @@ import {
 } from '@modelcontextprotocol/sdk/shared/auth.js'
 import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js'
 import axios from 'axios'
-import { createHash, randomBytes, randomUUID } from 'crypto'
+import { createHash, randomBytes } from 'crypto'
 import { mkdir } from 'fs/promises'
 import { createServer, type Server } from 'http'
 import { join } from 'path'
@@ -43,11 +43,8 @@ import { clearKeychainCache } from '../../utils/secureStorage/macOsKeychainHelpe
 import type { SecureStorageData } from '../../utils/secureStorage/types.js'
 import { sleep } from '../../utils/sleep.js'
 import { jsonParse, jsonStringify } from '../../utils/slowOperations.js'
-import { logEvent } from '../analytics/index.js'
-import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../analytics/metadata.js'
 import { buildRedirectUri, findAvailablePort } from './oauthPort.js'
 import type { McpHTTPServerConfig, McpSSEServerConfig } from './types.js'
-import { getLoggingSafeMcpBaseUrl } from './utils.js'
 import { performCrossAppAccess, XaaTokenExchangeError } from './xaa.js'
 import {
   acquireIdpIdToken,
@@ -63,33 +60,6 @@ import {
  * Timeout for individual OAuth requests (metadata discovery, token refresh, etc.)
  */
 const AUTH_REQUEST_TIMEOUT_MS = 30000
-
-/**
- * Failure reasons for the `tengu_mcp_oauth_refresh_failure` event. Values
- * are emitted to analytics — keep them stable (do not rename; add new ones).
- */
-type MCPRefreshFailureReason =
-  | 'metadata_discovery_failed'
-  | 'no_client_info'
-  | 'no_tokens_returned'
-  | 'invalid_grant'
-  | 'transient_retries_exhausted'
-  | 'request_failed'
-
-/**
- * Failure reasons for the `tengu_mcp_oauth_flow_error` event. Values are
- * emitted to analytics for attribution in BigQuery. Keep stable (do not
- * rename; add new ones).
- */
-type MCPOAuthFlowErrorReason =
-  | 'cancelled'
-  | 'timeout'
-  | 'provider_denied'
-  | 'state_mismatch'
-  | 'port_unavailable'
-  | 'sdk_auth_failed'
-  | 'token_exchange_failed'
-  | 'unknown'
 
 const MAX_LOCK_RETRIES = 5
 
@@ -717,11 +687,6 @@ async function performMCPXaaAuth(
   const idpClientSecret = getIdpClientSecret(idp.issuer)
 
   // Acquire id_token (cached or via one OIDC browser pop at the IdP).
-  // Peek the cache first so we can report idTokenCacheHit in analytics before
-  // acquireIdpIdToken potentially writes a fresh one.
-  const idTokenCacheHit = getCachedIdpIdToken(idp.issuer) !== undefined
-
-  let failureStage: XaaFailureStage = 'idp_login'
   try {
     let idToken
     try {
@@ -740,12 +705,10 @@ async function performMCPXaaAuth(
     }
 
     // Discover the IdP's token endpoint for the RFC 8693 exchange.
-    failureStage = 'discovery'
     const oidc = await discoverOidc(idp.issuer)
 
     // Run the exchange. performCrossAppAccess throws XaaTokenExchangeError
     // for the IdP leg and "jwt-bearer grant failed" for the AS leg.
-    failureStage = 'token_exchange'
     let tokens
     try {
       tokens = await performCrossAppAccess(
@@ -776,16 +739,6 @@ async function performMCPXaaAuth(
             'XAA: cleared cached id_token after token-exchange failure',
           )
         }
-      } else if (
-        msg.includes('PRM discovery failed') ||
-        msg.includes('AS metadata discovery failed') ||
-        msg.includes('no authorization server supports jwt-bearer')
-      ) {
-        // performCrossAppAccess runs PRM + AS discovery before the actual
-        // exchange — don't attribute their failures to 'token_exchange'.
-        failureStage = 'discovery'
-      } else if (msg.includes('jwt-bearer')) {
-        failureStage = 'jwt_bearer'
       }
       throw e
     }
@@ -823,23 +776,11 @@ async function performMCPXaaAuth(
     })
 
     logMCPDebug(serverName, 'XAA: tokens saved')
-    logEvent('tengu_mcp_oauth_flow_success', {
-      authMethod:
-        'xaa' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      idTokenCacheHit,
-    })
   } catch (e) {
     // User-initiated cancel (Esc during IdP browser pop) isn't a failure.
     if (e instanceof AuthenticationCancelledError) {
       throw e
     }
-    logEvent('tengu_mcp_oauth_flow_failure', {
-      authMethod:
-        'xaa' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      xaaFailureStage:
-        failureStage as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      idTokenCacheHit,
-    })
     throw e
   }
 }
@@ -874,22 +815,6 @@ export async function performMCPOAuthFlow(
         `XAA is not enabled (set CLAUDE_CODE_ENABLE_XAA=1). Remove 'oauth.xaa' from server '${serverName}' to use the standard consent flow.`,
       )
     }
-    logEvent('tengu_mcp_oauth_flow_start', {
-      isOAuthFlow: true,
-      authMethod:
-        'xaa' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      transportType:
-        serverConfig.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      ...(getLoggingSafeMcpBaseUrl(serverConfig)
-        ? {
-            mcpServerBaseUrl: getLoggingSafeMcpBaseUrl(
-              serverConfig,
-            ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          }
-        : {}),
-    })
-    // performMCPXaaAuth logs its own success/failure events (with
-    // idTokenCacheHit + xaaFailureStage).
     await performMCPXaaAuth(
       serverName,
       serverConfig,
@@ -934,25 +859,6 @@ export async function performMCPOAuthFlow(
     resourceMetadataUrl,
   }
 
-  const flowAttemptId = randomUUID()
-
-  logEvent('tengu_mcp_oauth_flow_start', {
-    flowAttemptId:
-      flowAttemptId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    isOAuthFlow: true,
-    transportType:
-      serverConfig.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    ...(getLoggingSafeMcpBaseUrl(serverConfig)
-      ? {
-          mcpServerBaseUrl: getLoggingSafeMcpBaseUrl(
-            serverConfig,
-          ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        }
-      : {}),
-  })
-
-  // Track whether we reached the token-exchange phase so the catch block can
-  // attribute the failure reason correctly.
   let authorizationCodeObtained = false
 
   try {
@@ -1240,103 +1146,27 @@ export async function performMCPOAuthFlow(
         logMCPDebug(serverName, `Token expires_in: ${savedTokens.expires_in}`)
       }
 
-      logEvent('tengu_mcp_oauth_flow_success', {
-        flowAttemptId:
-          flowAttemptId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        transportType:
-          serverConfig.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        ...(getLoggingSafeMcpBaseUrl(serverConfig)
-          ? {
-              mcpServerBaseUrl: getLoggingSafeMcpBaseUrl(
-                serverConfig,
-              ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-            }
-          : {}),
-      })
     } else {
       throw new Error('Unexpected auth result: ' + result)
     }
   } catch (error) {
     logMCPDebug(serverName, `Error during auth completion: ${error}`)
 
-    // Determine failure reason for attribution telemetry. The try block covers
-    // port acquisition, the callback server, the redirect flow, and token
-    // exchange. Map known failure paths to stable reason codes.
-    let reason: MCPOAuthFlowErrorReason = 'unknown'
-    let oauthErrorCode: string | undefined
-    let httpStatus: number | undefined
-
-    if (error instanceof AuthenticationCancelledError) {
-      reason = 'cancelled'
-    } else if (authorizationCodeObtained) {
-      reason = 'token_exchange_failed'
-    } else {
-      const msg = errorMessage(error)
-      if (msg.includes('Authentication timeout')) {
-        reason = 'timeout'
-      } else if (msg.includes('OAuth state mismatch')) {
-        reason = 'state_mismatch'
-      } else if (msg.includes('OAuth error:')) {
-        reason = 'provider_denied'
-      } else if (
-        msg.includes('already in use') ||
-        msg.includes('EADDRINUSE') ||
-        msg.includes('callback server failed') ||
-        msg.includes('No available port')
-      ) {
-        reason = 'port_unavailable'
-      } else if (msg.includes('SDK auth failed')) {
-        reason = 'sdk_auth_failed'
+    if (
+      error instanceof OAuthError &&
+      error.errorCode === 'invalid_client' &&
+      error.message.includes('Client not found')
+    ) {
+      const storage = getSecureStorage()
+      const existingData = storage.read() || {}
+      const serverKey = getServerKey(serverName, serverConfig)
+      if (existingData.mcpOAuth?.[serverKey]) {
+        delete existingData.mcpOAuth[serverKey].clientId
+        delete existingData.mcpOAuth[serverKey].clientSecret
+        storage.update(existingData)
       }
     }
 
-    // sdkAuth uses native fetch and throws OAuthError subclasses (InvalidGrantError,
-    // ServerError, InvalidClientError, etc.) via parseErrorResponse. Extract the
-    // OAuth error code directly from the SDK error instance.
-    if (error instanceof OAuthError) {
-      oauthErrorCode = error.errorCode
-      // SDK does not attach HTTP status as a property, but the fallback ServerError
-      // embeds it in the message as "HTTP {status}:" when the response body was
-      // unparseable. Best-effort extraction.
-      const statusMatch = error.message.match(/^HTTP (\d{3}):/)
-      if (statusMatch) {
-        httpStatus = Number(statusMatch[1])
-      }
-      // If client not found, clear the stored client ID and suggest retry
-      if (
-        error.errorCode === 'invalid_client' &&
-        error.message.includes('Client not found')
-      ) {
-        const storage = getSecureStorage()
-        const existingData = storage.read() || {}
-        const serverKey = getServerKey(serverName, serverConfig)
-        if (existingData.mcpOAuth?.[serverKey]) {
-          delete existingData.mcpOAuth[serverKey].clientId
-          delete existingData.mcpOAuth[serverKey].clientSecret
-          storage.update(existingData)
-        }
-      }
-    }
-
-    logEvent('tengu_mcp_oauth_flow_error', {
-      flowAttemptId:
-        flowAttemptId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      reason:
-        reason as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      error_code:
-        oauthErrorCode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      http_status:
-        httpStatus?.toString() as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      transportType:
-        serverConfig.type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      ...(getLoggingSafeMcpBaseUrl(serverConfig)
-        ? {
-            mcpServerBaseUrl: getLoggingSafeMcpBaseUrl(
-              serverConfig,
-            ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          }
-        : {}),
-    })
     throw error
   }
 }
@@ -2179,34 +2009,6 @@ export class ClaudeAuthProvider implements OAuthClientProvider {
   ): Promise<OAuthTokens | undefined> {
     const MAX_ATTEMPTS = 3
 
-    const mcpServerBaseUrl = getLoggingSafeMcpBaseUrl(this.serverConfig)
-    const emitRefreshEvent = (
-      outcome: 'success' | 'failure',
-      reason?: MCPRefreshFailureReason,
-    ): void => {
-      logEvent(
-        outcome === 'success'
-          ? 'tengu_mcp_oauth_refresh_success'
-          : 'tengu_mcp_oauth_refresh_failure',
-        {
-          transportType: this.serverConfig
-            .type as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          ...(mcpServerBaseUrl
-            ? {
-                mcpServerBaseUrl:
-                  mcpServerBaseUrl as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              }
-            : {}),
-          ...(reason
-            ? {
-                reason:
-                  reason as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              }
-            : {}),
-        },
-      )
-    }
-
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       try {
         logMCPDebug(this.serverName, `Starting token refresh`)
@@ -2249,7 +2051,6 @@ export class ClaudeAuthProvider implements OAuthClientProvider {
         }
         if (!metadata) {
           logMCPDebug(this.serverName, `Failed to discover OAuth metadata`)
-          emitRefreshEvent('failure', 'metadata_discovery_failed')
           return undefined
         }
         // Cache for future refreshes
@@ -2258,7 +2059,6 @@ export class ClaudeAuthProvider implements OAuthClientProvider {
         const clientInfo = await this.clientInformation()
         if (!clientInfo) {
           logMCPDebug(this.serverName, `No client information available`)
-          emitRefreshEvent('failure', 'no_client_info')
           return undefined
         }
 
@@ -2276,12 +2076,10 @@ export class ClaudeAuthProvider implements OAuthClientProvider {
         if (newTokens) {
           logMCPDebug(this.serverName, `Token refresh successful`)
           await this.saveTokens(newTokens)
-          emitRefreshEvent('success')
           return newTokens
         }
 
         logMCPDebug(this.serverName, `Token refresh returned no tokens`)
-        emitRefreshEvent('failure', 'no_tokens_returned')
         return undefined
       } catch (error) {
         // Invalid grant means the refresh token itself is invalid/revoked/expired.
@@ -2320,7 +2118,6 @@ export class ClaudeAuthProvider implements OAuthClientProvider {
             `No valid tokens in storage, clearing stored tokens`,
           )
           await this.invalidateCredentials('tokens')
-          emitRefreshEvent('failure', 'invalid_grant')
           return undefined
         }
 
@@ -2338,10 +2135,6 @@ export class ClaudeAuthProvider implements OAuthClientProvider {
           logMCPDebug(
             this.serverName,
             `Token refresh failed: ${errorMessage(error)}`,
-          )
-          emitRefreshEvent(
-            'failure',
-            isRetryable ? 'transient_retries_exhausted' : 'request_failed',
           )
           return undefined
         }

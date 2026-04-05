@@ -3,7 +3,6 @@ import React, { type ReactNode, useCallback, useMemo, useState } from 'react';
 import { Box, Text } from '../../ink.js';
 import type { KeybindingAction } from '../../keybindings/types.js';
 import { useKeybindings } from '../../keybindings/useKeybinding.js';
-import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from '../../services/analytics/index.js';
 import { useSetAppState } from '../../state/AppState.js';
 import { type OptionWithDescription, Select } from '../CustomSelect/select.js';
 export type FeedbackType = 'accept' | 'reject';
@@ -16,16 +15,11 @@ export type PermissionPromptOption<T extends string> = {
   };
   keybinding?: KeybindingAction;
 };
-export type ToolAnalyticsContext = {
-  toolName: string;
-  isMcp: boolean;
-};
 export type PermissionPromptProps<T extends string> = {
   options: PermissionPromptOption<T>[];
   onSelect: (value: T, feedback?: string) => void;
   onCancel?: () => void;
   question?: string | ReactNode;
-  toolAnalyticsContext?: ToolAnalyticsContext;
 };
 const DEFAULT_PLACEHOLDERS: Record<FeedbackType, string> = {
   accept: 'tell Claude what to do next',
@@ -48,8 +42,7 @@ export function PermissionPrompt(t0) {
     options,
     onSelect,
     onCancel,
-    question: t1,
-    toolAnalyticsContext
+    question: t1
   } = t0;
   const question = t1 === undefined ? "Do you want to proceed?" : t1;
   const setAppState = useSetAppState();
@@ -134,7 +127,7 @@ export function PermissionPrompt(t0) {
   }
   const selectOptions = t3;
   let t4;
-  if ($[12] !== acceptInputMode || $[13] !== options || $[14] !== rejectInputMode || $[15] !== toolAnalyticsContext?.isMcp || $[16] !== toolAnalyticsContext?.toolName) {
+  if ($[12] !== acceptInputMode || $[13] !== options || $[14] !== rejectInputMode) {
     t4 = value_0 => {
       const option = options.find(opt_1 => opt_1.value === value_0);
       if (!option?.feedbackConfig) {
@@ -143,28 +136,20 @@ export function PermissionPrompt(t0) {
       const {
         type: type_0
       } = option.feedbackConfig;
-      const analyticsProps = {
-        toolName: toolAnalyticsContext?.toolName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        isMcp: toolAnalyticsContext?.isMcp ?? false
-      };
       if (type_0 === "accept") {
         if (acceptInputMode) {
           setAcceptInputMode(false);
-          logEvent("tengu_accept_feedback_mode_collapsed", analyticsProps);
         } else {
           setAcceptInputMode(true);
           setAcceptFeedbackModeEntered(true);
-          logEvent("tengu_accept_feedback_mode_entered", analyticsProps);
         }
       } else {
         if (type_0 === "reject") {
           if (rejectInputMode) {
             setRejectInputMode(false);
-            logEvent("tengu_reject_feedback_mode_collapsed", analyticsProps);
           } else {
             setRejectInputMode(true);
             setRejectFeedbackModeEntered(true);
-            logEvent("tengu_reject_feedback_mode_entered", analyticsProps);
           }
         }
       }
@@ -172,15 +157,13 @@ export function PermissionPrompt(t0) {
     $[12] = acceptInputMode;
     $[13] = options;
     $[14] = rejectInputMode;
-    $[15] = toolAnalyticsContext?.isMcp;
-    $[16] = toolAnalyticsContext?.toolName;
     $[17] = t4;
   } else {
     t4 = $[17];
   }
   const handleInputModeToggle = t4;
   let t5;
-  if ($[18] !== acceptFeedback || $[19] !== acceptFeedbackModeEntered || $[20] !== onSelect || $[21] !== options || $[22] !== rejectFeedback || $[23] !== rejectFeedbackModeEntered || $[24] !== toolAnalyticsContext?.isMcp || $[25] !== toolAnalyticsContext?.toolName) {
+  if ($[18] !== acceptFeedback || $[19] !== acceptFeedbackModeEntered || $[20] !== onSelect || $[21] !== options || $[22] !== rejectFeedback || $[23] !== rejectFeedbackModeEntered) {
     t5 = value_1 => {
       const option_0 = options.find(opt_2 => opt_2.value === value_1);
       if (!option_0) {
@@ -193,20 +176,6 @@ export function PermissionPrompt(t0) {
         if (trimmedFeedback) {
           feedback = trimmedFeedback;
         }
-        const analyticsProps_0 = {
-          toolName: toolAnalyticsContext?.toolName as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          isMcp: toolAnalyticsContext?.isMcp ?? false,
-          has_instructions: !!trimmedFeedback,
-          instructions_length: trimmedFeedback?.length ?? 0,
-          entered_feedback_mode: option_0.feedbackConfig.type === "accept" ? acceptFeedbackModeEntered : rejectFeedbackModeEntered
-        };
-        if (option_0.feedbackConfig.type === "accept") {
-          logEvent("tengu_accept_submitted", analyticsProps_0);
-        } else {
-          if (option_0.feedbackConfig.type === "reject") {
-            logEvent("tengu_reject_submitted", analyticsProps_0);
-          }
-        }
       }
       onSelect(value_1, feedback);
     };
@@ -216,8 +185,6 @@ export function PermissionPrompt(t0) {
     $[21] = options;
     $[22] = rejectFeedback;
     $[23] = rejectFeedbackModeEntered;
-    $[24] = toolAnalyticsContext?.isMcp;
-    $[25] = toolAnalyticsContext?.toolName;
     $[26] = t5;
   } else {
     t5 = $[26];
@@ -251,7 +218,6 @@ export function PermissionPrompt(t0) {
   let t7;
   if ($[31] !== onCancel || $[32] !== setAppState) {
     t7 = () => {
-      logEvent("tengu_permission_request_escape", {});
       setAppState(_temp);
       onCancel?.();
     };

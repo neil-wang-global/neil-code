@@ -1,7 +1,6 @@
 import { randomUUID } from 'crypto'
 import { basename } from 'path'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { logEvent } from 'src/services/analytics/index.js'
 import { readFileSync } from 'src/utils/fileRead.js'
 import { expandPath } from 'src/utils/path.js'
 import type { PermissionOption } from '../components/permissions/FilePermissionDialog/permissionOptions.js'
@@ -80,8 +79,6 @@ export function useDiffInIDE({
     }
 
     try {
-      logEvent('tengu_ext_will_show_diff', {})
-
       const { oldContent, newContent } = await showDiffInIDE(
         filePath,
         edits,
@@ -93,8 +90,6 @@ export function useDiffInIDE({
         return
       }
 
-      logEvent('tengu_ext_diff_accepted', {})
-
       const newEdits = computeEditsFromContents(
         filePath,
         oldContent,
@@ -104,7 +99,6 @@ export function useDiffInIDE({
 
       if (newEdits.length === 0) {
         // No changes -- edit was rejected (eg. reverted)
-        logEvent('tengu_ext_diff_rejected', {})
         // We close the tab here because 'no' no longer auto-closes
         const ideClient = getConnectedIdeClient(
           toolUseContext.options.mcpClients,

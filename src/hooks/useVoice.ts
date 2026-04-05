@@ -9,10 +9,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSetVoiceState } from '../context/voice.js'
 import { useTerminalFocus } from '../ink/hooks/use-terminal-focus.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../services/analytics/index.js'
 import { getVoiceKeyterms } from '../services/voiceKeyterms.js'
 import {
   connectVoiceStream,
@@ -22,7 +18,6 @@ import {
 } from '../services/voiceStreamSTT.js'
 import { logForDebugging } from '../utils/debug.js'
 import { toError } from '../utils/errors.js'
-import { getSystemLocaleLanguage } from '../utils/intl.js'
 import { logError } from '../utils/log.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { sleep } from '../utils/sleep.js'
@@ -390,10 +385,6 @@ export function useVoice({
           logForDebugging(
             `[voice] Silent-drop detected (no_data_timeout, ${String(fullAudioRef.current.length)} chunks); replaying on fresh connection`,
           )
-          logEvent('tengu_voice_silent_drop_replay', {
-            recordingDurationMs,
-            chunkCount: fullAudioRef.current.length,
-          })
           if (connectionRef.current) {
             connectionRef.current.close()
             connectionRef.current = null
@@ -458,25 +449,6 @@ export function useVoice({
         logForDebugging(
           `[voice] Final transcript assembled (${String(text.length)} chars): "${text.slice(0, 200)}"`,
         )
-
-        // Tracks silent-drop rate: transcriptChars=0 + hadAudioSignal=true
-        // + recordingDurationMs>2000 = the bug backend PR #287008 fixes.
-        // focusFlushedCharsRef makes transcriptChars accurate for focus mode
-        // (where each final is injected immediately and accumulatedRef reset).
-        //
-        // NOTE: this fires only on the finishRecording() path. The onError
-        // fallthrough and !conn (no-OAuth) paths bypass this → don't compute
-        // COUNT(completed)/COUNT(started) as a success rate; the silent-drop
-        // denominator (completed events only) is internally consistent.
-        logEvent('tengu_voice_recording_completed', {
-          transcriptChars: text.length + focusFlushedChars,
-          recordingDurationMs,
-          hadAudioSignal,
-          retried,
-          silentDropRetried: silentDropRetriedRef.current,
-          wsConnected,
-          focusTriggered,
-        })
 
         if (connectionRef.current) {
           connectionRef.current.close()
@@ -746,17 +718,6 @@ export function useVoice({
 
     const rawLanguage = getInitialSettings().language
     const stt = normalizeLanguageForSTT(rawLanguage)
-    logEvent('tengu_voice_recording_started', {
-      focusTriggered: focusTriggeredRef.current,
-      sttLanguage:
-        stt.code as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      sttLanguageIsDefault: !rawLanguage?.trim(),
-      sttLanguageFellBack: stt.fellBackFrom !== undefined,
-      // ISO 639 subtag from Intl (bounded set, never user text). undefined if
-      // Intl failed — omitted from the payload, no retry cost (cached).
-      systemLocaleLanguage:
-        getSystemLocaleLanguage() as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
 
     // Retry once if the connection errors before delivering any transcript.
     // The conversation-engine proxy can reject rapid reconnects (~1/N_pods
@@ -873,7 +834,6 @@ export function useVoice({
                 logForDebugging(
                   `[voice] early voice_stream error (pre-transcript), retrying once: ${error}`,
                 )
-                logEvent('tengu_voice_stream_early_retry', {})
                 connectionRef.current = null
                 attemptGenRef.current++
                 setTimeout(

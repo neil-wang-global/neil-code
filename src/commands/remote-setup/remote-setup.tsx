@@ -5,7 +5,6 @@ import { Select } from '../../components/CustomSelect/index.js';
 import { Dialog } from '../../components/design-system/Dialog.js';
 import { LoadingState } from '../../components/design-system/LoadingState.js';
 import { Box, Text } from '../../ink.js';
-import { logEvent, type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS as SafeString } from '../../services/analytics/index.js';
 import type { LocalJSXCommandOnDone } from '../../types/command.js';
 import { openBrowser } from '../../utils/browser.js';
 import { getGhAuthStatus } from '../../utils/github/ghAuthStatus.js';
@@ -88,13 +87,9 @@ function Web({
     name: 'checking'
   });
   useEffect(() => {
-    logEvent('tengu_remote_setup_started', {});
     void checkLoginState().then(async result => {
       switch (result.status) {
         case 'not_signed_in':
-          logEvent('tengu_remote_setup_result', {
-            result: 'not_signed_in' as SafeString
-          });
           onDone('Not signed in to Claude. Run /login first.');
           return;
         case 'gh_not_installed':
@@ -102,9 +97,6 @@ function Web({
           {
             const url = `${getCodeWebUrl()}/onboarding?step=alt-auth`;
             await openBrowser(url);
-            logEvent('tengu_remote_setup_result', {
-              result: result.status as SafeString
-            });
             onDone(result.status === 'gh_not_installed' ? `GitHub CLI not found. Install it via https://cli.github.com/, then run \`gh auth login\`, or connect GitHub on the web: ${url}` : `GitHub CLI not authenticated. Run \`gh auth login\` and try again, or connect GitHub on the web: ${url}`);
             return;
           }
@@ -119,9 +111,6 @@ function Web({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const handleCancel = () => {
-    logEvent('tengu_remote_setup_result', {
-      result: 'cancelled' as SafeString
-    });
     onDone();
   };
   const handleConfirm = async (token: RedactedGithubToken) => {
@@ -130,10 +119,6 @@ function Web({
     });
     const result = await importGithubToken(token);
     if (!result.ok) {
-      logEvent('tengu_remote_setup_result', {
-        result: 'import_failed' as SafeString,
-        error_kind: result.error.kind as SafeString
-      });
       onDone(errorMessage(result.error, getCodeWebUrl()));
       return;
     }
@@ -144,9 +129,6 @@ function Web({
     await createDefaultEnvironment();
     const url = getCodeWebUrl();
     await openBrowser(url);
-    logEvent('tengu_remote_setup_result', {
-      result: 'success' as SafeString
-    });
     onDone(`Connected as ${result.result.github_username}. Opened ${url}`);
   };
   if (step.name === 'checking') {

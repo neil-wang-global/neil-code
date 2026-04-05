@@ -1,7 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import { createServer, type Server } from 'http'
 import type { AddressInfo } from 'net'
-import { logEvent } from 'src/services/analytics/index.js'
 import { getOauthConfig } from '../../constants/oauth.js'
 import { logError } from '../../utils/log.js'
 import { shouldUseClaudeAIAuth } from './client.js'
@@ -87,7 +86,6 @@ export class AuthCodeListener {
     if (customHandler) {
       customHandler(this.pendingResponse, scopes)
       this.pendingResponse = null
-      logEvent('tengu_oauth_automatic_redirect', { custom_handler: true })
       return
     }
 
@@ -100,8 +98,6 @@ export class AuthCodeListener {
     this.pendingResponse.writeHead(302, { Location: successUrl })
     this.pendingResponse.end()
     this.pendingResponse = null
-
-    logEvent('tengu_oauth_automatic_redirect', {})
   }
 
   /**
@@ -118,8 +114,6 @@ export class AuthCodeListener {
     this.pendingResponse.writeHead(302, { Location: errorUrl })
     this.pendingResponse.end()
     this.pendingResponse = null
-
-    logEvent('tengu_oauth_automatic_redirect_error', {})
   }
 
   private startLocalListener(onReady: () => Promise<void>): void {

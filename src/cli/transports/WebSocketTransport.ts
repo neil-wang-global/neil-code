@@ -1,6 +1,5 @@
 import type { StdoutMessage } from 'src/entrypoints/sdk/controlTypes.js'
 import type WsWebSocket from 'ws'
-import { logEvent } from '../../services/analytics/index.js'
 import { CircularBuffer } from '../../utils/CircularBuffer.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../../utils/diagLogs.js'
@@ -300,15 +299,6 @@ export class WebSocketTransport implements Transport {
       duration_ms: connectDuration,
     })
 
-    // Reconnect success — capture attempt count + downtime before resetting.
-    // reconnectStartTime is null on first connect, non-null on reopen.
-    if (this.isBridge && this.reconnectStartTime !== null) {
-      logEvent('tengu_ws_transport_reconnected', {
-        attempts: this.reconnectAttempts,
-        downtimeMs: Date.now() - this.reconnectStartTime,
-      })
-    }
-
     this.reconnectAttempts = 0
     this.reconnectStartTime = null
     this.lastReconnectAttemptTime = null
@@ -400,22 +390,6 @@ export class WebSocketTransport implements Transport {
         (closeCode != null ? ` (code ${closeCode})` : ''),
     )
     logForDiagnosticsNoPII('info', 'cli_websocket_disconnected')
-    if (this.isBridge) {
-      // Fire on every close — including intermediate ones during a reconnect
-      // storm (those never surface to the onCloseCallback consumer). For the
-      // Cloudflare-5min-idle hypothesis: cluster msSinceLastActivity; if the
-      // peak sits at ~300s with closeCode 1006, that's the proxy RST.
-      logEvent('tengu_ws_transport_closed', {
-        closeCode,
-        msSinceLastActivity:
-          this.lastActivityTime > 0 ? Date.now() - this.lastActivityTime : -1,
-        // 'connected' = healthy drop (the Cloudflare case); 'reconnecting' =
-        // connect-rejection mid-storm. State isn't mutated until the branches
-        // below, so this reads the pre-close value.
-        wasConnected: this.state === 'connected',
-        reconnectAttempts: this.reconnectAttempts,
-      })
-    }
     this.doDisconnect()
 
     if (this.state === 'closing' || this.state === 'closed') return
@@ -523,13 +497,6 @@ export class WebSocketTransport implements Transport {
       logForDiagnosticsNoPII('error', 'cli_websocket_reconnect_attempt', {
         reconnectAttempts: this.reconnectAttempts,
       })
-      if (this.isBridge) {
-        logEvent('tengu_ws_transport_reconnecting', {
-          attempt: this.reconnectAttempts,
-          elapsedMs: elapsed,
-          delayMs: Math.round(delay),
-        })
-      }
 
       this.reconnectTimer = setTimeout(() => {
         this.reconnectTimer = null

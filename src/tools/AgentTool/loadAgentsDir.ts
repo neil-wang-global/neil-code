@@ -1,13 +1,3 @@
-import { feature } from 'bun:bundle'
-import memoize from 'lodash-es/memoize.js'
-import { basename } from 'path'
-import type { SettingSource } from 'src/utils/settings/constants.js'
-import { z } from 'zod/v4'
-import { isAutoMemoryEnabled } from '../../memdir/paths.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../../services/analytics/index.js'
 import {
   type McpServerConfig,
   McpServerConfigSchema,
@@ -329,12 +319,6 @@ export const getAgentDefinitionsWithOverrides = memoize(
             logForDebugging(
               `Failed to parse agent from ${filePath}: ${errorMsg}`,
             )
-            logEvent('tengu_agent_parse_error', {
-              error:
-                errorMsg as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              location:
-                source as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-            })
             return null
           }
           return agent

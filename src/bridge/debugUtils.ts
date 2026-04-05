@@ -1,7 +1,3 @@
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../services/analytics/index.js'
 import { logForDebugging } from '../utils/debug.js'
 import { errorMessage } from '../utils/errors.js'
 import { jsonStringify } from '../utils/slowOperations.js'
@@ -121,21 +117,14 @@ export function extractErrorDetail(data: unknown): string | undefined {
 }
 
 /**
- * Log a bridge init skip — debug message + `tengu_bridge_repl_skipped`
- * analytics event. Centralizes the event name and the AnalyticsMetadata
- * cast so call sites don't each repeat the 5-line boilerplate.
+ * Log a bridge init skip with an optional debug message.
  */
 export function logBridgeSkip(
-  reason: string,
+  _reason: string,
   debugMsg?: string,
-  v2?: boolean,
+  _v2?: boolean,
 ): void {
   if (debugMsg) {
     logForDebugging(debugMsg)
   }
-  logEvent('tengu_bridge_repl_skipped', {
-    reason:
-      reason as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    ...(v2 !== undefined && { v2 }),
-  })
 }

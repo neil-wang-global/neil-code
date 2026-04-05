@@ -5,8 +5,6 @@
  * This component renders nothing - it just registers the cancel keybinding handler.
  */
 import { useCallback, useRef } from 'react'
-import { logEvent } from 'src/services/analytics/index.js'
-import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from 'src/services/analytics/metadata.js'
 import {
   useAppState,
   useAppStateStore,
@@ -85,17 +83,9 @@ export function CancelRequestHandler(props: CancelRequestHandlerProps): null {
   const viewSelectionMode = useAppState(s => s.viewSelectionMode)
 
   const handleCancel = useCallback(() => {
-    const cancelProps = {
-      source:
-        'escape' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      streamMode:
-        streamMode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    }
-
     // Priority 1: If there's an active task running, cancel it first
     // This takes precedence over queue management so users can always interrupt Claude
     if (abortSignal !== undefined && !abortSignal.aborted) {
-      logEvent('tengu_cancel', cancelProps)
       setToolUseConfirmQueue(() => [])
       onCancel()
       return
@@ -110,7 +100,6 @@ export function CancelRequestHandler(props: CancelRequestHandlerProps): null {
     }
 
     // Fallback: nothing to cancel or pop (shouldn't reach here if isActive is correct)
-    logEvent('tengu_cancel', cancelProps)
     setToolUseConfirmQueue(() => [])
     onCancel()
   }, [
@@ -242,10 +231,6 @@ export function CancelRequestHandler(props: CancelRequestHandlerProps): null {
       // Second press within window -- kill all background agents
       lastKillAgentsPressRef.current = 0
       removeNotification('kill-agents-confirm')
-      logEvent('tengu_cancel', {
-        source:
-          'kill_agents' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      })
       clearCommandQueue()
       killAllAgentsAndNotify()
       return

@@ -1,11 +1,6 @@
 import { readFile } from 'fs/promises'
 import memoize from 'lodash-es/memoize.js'
 import type { ToolPermissionContext } from '../Tool.js'
-import { jsonStringify } from '../utils/slowOperations.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from './analytics/index.js'
 
 /**
  * Get the current Kubernetes namespace:
@@ -72,19 +67,12 @@ export async function logPermissionContextForAnts(
   toolPermissionContext: ToolPermissionContext | null,
   moment: 'summary' | 'initialization',
 ): Promise<void> {
+  void toolPermissionContext
+  void moment
+
   if (process.env.USER_TYPE !== 'ant') {
     return
   }
 
-  void logEvent('tengu_internal_record_permission_context', {
-    moment:
-      moment as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    namespace:
-      (await getKubernetesNamespace()) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    toolPermissionContext: jsonStringify(
-      toolPermissionContext,
-    ) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    containerId:
-      (await getContainerId()) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  })
+  await Promise.all([getKubernetesNamespace(), getContainerId()])
 }

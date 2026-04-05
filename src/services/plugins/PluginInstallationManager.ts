@@ -20,7 +20,6 @@ import {
   reconcileMarketplaces,
 } from '../../utils/plugins/reconciler.js'
 import { refreshActivePlugins } from '../../utils/plugins/refresh.js'
-import { logEvent } from '../analytics/index.js'
 
 type SetAppState = (f: (prevState: AppState) => AppState) => void
 
@@ -119,18 +118,12 @@ export async function performBackgroundPluginInstallations(
       },
     })
 
-    const metrics = {
+    logForDiagnosticsNoPII('info', 'tengu_marketplace_background_install', {
       installed_count: result.installed.length,
       updated_count: result.updated.length,
       failed_count: result.failed.length,
       up_to_date_count: result.upToDate.length,
-    }
-    logEvent('tengu_marketplace_background_install', metrics)
-    logForDiagnosticsNoPII(
-      'info',
-      'tengu_marketplace_background_install',
-      metrics,
-    )
+    })
 
     if (result.installed.length > 0) {
       // New marketplaces were installed — auto-refresh plugins. This fixes

@@ -1,13 +1,8 @@
 import type { TerminalNotification } from '../ink/useTerminalNotification.js'
 import { getGlobalConfig } from '../utils/config.js'
-import { env } from '../utils/env.js'
 import { execFileNoThrow } from '../utils/execFileNoThrow.js'
 import { executeNotificationHooks } from '../utils/hooks.js'
 import { logError } from '../utils/log.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from './analytics/index.js'
 
 export type NotificationOptions = {
   message: string
@@ -24,15 +19,7 @@ export async function sendNotification(
 
   await executeNotificationHooks(notif)
 
-  const methodUsed = await sendToChannel(channel, notif, terminal)
-
-  logEvent('tengu_notification_method_used', {
-    configured_channel:
-      channel as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    method_used:
-      methodUsed as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    term: env.terminal as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  })
+  await sendToChannel(channel, notif, terminal)
 }
 
 const DEFAULT_TITLE = 'Claude Code'

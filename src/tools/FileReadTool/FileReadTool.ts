@@ -1,18 +1,3 @@
-import type { Base64ImageSource } from '@anthropic-ai/sdk/resources/index.mjs'
-import { readdir, readFile as readFileAsync } from 'fs/promises'
-import * as path from 'path'
-import { posix, win32 } from 'path'
-import { z } from 'zod/v4'
-import {
-  PDF_AT_MENTION_INLINE_THRESHOLD,
-  PDF_EXTRACT_SIZE_THRESHOLD,
-  PDF_MAX_PAGES_PER_READ,
-} from '../../constants/apiLimits.js'
-import { hasBinaryExtension } from '../../constants/files.js'
-import { memoryFreshnessNote } from '../../memdir/memoryAge.js'
-import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
-import { logEvent } from '../../services/analytics/index.js'
-import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../services/analytics/index.js'
 import {
   countTokensWithAPI,
   roughTokenCountEstimationForFileType,
@@ -505,10 +490,6 @@ export const FileReadTool = buildTool({
     // Telemetry: track when callers override default read limits.
     // Only fires on override (low volume) — event count = override frequency.
     if (fileReadingLimits !== undefined) {
-      logEvent('tengu_file_read_limits_override', {
-        hasMaxTokens: fileReadingLimits.maxTokens !== undefined,
-        hasMaxSizeBytes: fileReadingLimits.maxSizeBytes !== undefined,
-      })
     }
 
     const ext = path.extname(file_path).toLowerCase().slice(1)
@@ -551,7 +532,6 @@ export const FileReadTool = buildTool({
         try {
           const mtimeMs = await getFileModificationTimeAsync(fullFilePath)
           if (mtimeMs === existingState.timestamp) {
-            logEvent('tengu_file_read_dedup', {})
             return {
               data: {
                 type: 'file_unchanged' as const,
@@ -880,12 +860,6 @@ async function callInner(
       if (!extractResult.success) {
         throw new Error(extractResult.error.message)
       }
-      logEvent('tengu_pdf_page_extraction', {
-        success: true,
-        pageCount: extractResult.data.file.count,
-        fileSize: extractResult.data.file.originalSize,
-        hasPageRange: true,
-      })
       const entries = await readdir(extractResult.data.file.outputDir)
       const imageFiles = entries.filter(f => f.endsWith('.jpg')).sort()
       const imageBlocks = await Promise.all(
@@ -935,17 +909,7 @@ async function callInner(
     if (shouldExtractPages) {
       const extractResult = await extractPDFPages(resolvedFilePath)
       if (extractResult.success) {
-        logEvent('tengu_pdf_page_extraction', {
-          success: true,
-          pageCount: extractResult.data.file.count,
-          fileSize: extractResult.data.file.originalSize,
-        })
       } else {
-        logEvent('tengu_pdf_page_extraction', {
-          success: false,
-          available: extractResult.error.reason !== 'unavailable',
-          fileSize: stats.size,
-        })
       }
     }
 
@@ -1024,20 +988,6 @@ async function callInner(
   }
 
   const sessionFileType = detectSessionFileType(fullFilePath)
-  logEvent('tengu_session_file_read', {
-    totalLines,
-    readLines: lineCount,
-    totalBytes,
-    readBytes,
-    offset,
-    ...(limit !== undefined && { limit }),
-    ...(messageId !== undefined && {
-      messageID:
-        messageId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    }),
-    is_session_memory: sessionFileType === 'session_memory',
-    is_session_transcript: sessionFileType === 'session_transcript',
-  })
 
   return { data }
 }

@@ -6,10 +6,6 @@
 import { type Command, Option } from '@commander-js/extra-typings'
 import { cliError, cliOk } from '../../cli/exit.js'
 import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../../services/analytics/index.js'
-import {
   readClientSecret,
   saveMcpClientSecret,
 } from '../../services/mcp/auth.js'
@@ -131,18 +127,8 @@ export function registerMcpAddCommand(mcp: Command): void {
           actualCommand.startsWith('localhost') ||
           actualCommand.endsWith('/sse') ||
           actualCommand.endsWith('/mcp')
-
-        logEvent('tengu_mcp_add', {
-          type: transport as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          scope:
-            scope as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          source:
-            'command' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          transport:
-            transport as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          transportExplicit: transportExplicit,
-          looksLikeUrl: looksLikeUrl,
-        })
+        void transportExplicit
+        void looksLikeUrl
 
         if (transport === 'sse') {
           if (!actualCommand) {

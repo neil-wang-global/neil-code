@@ -10,7 +10,6 @@ import instances from '../ink/instances.js';
 import { useKeybinding } from '../keybindings/useKeybinding.js';
 import type { Screen } from '../screens/REPL.js';
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js';
-import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from '../services/analytics/index.js';
 import { useAppState, useSetAppState } from '../state/AppState.js';
 import { count } from '../utils/array.js';
 import { getTerminalPanel } from '../utils/terminalPanel.js';
@@ -44,14 +43,10 @@ export function GlobalKeybindingHandlers({
   virtualScrollActive,
   searchBarOpen = false
 }: Props): null {
-  const expandedView = useAppState(s => s.expandedView);
   const setAppState = useSetAppState();
 
   // Toggle todo list (ctrl+t) - cycles through views
   const handleToggleTodos = useCallback(() => {
-    logEvent('tengu_toggle_todos', {
-      is_expanded: expandedView === 'tasks'
-    });
     setAppState(prev => {
       const {
         getAllInProcessTeammateTasks
@@ -85,7 +80,7 @@ export function GlobalKeybindingHandlers({
         expandedView: prev.expandedView === 'tasks' ? 'none' as const : 'tasks' as const
       };
     });
-  }, [expandedView, setAppState]);
+  }, [setAppState]);
 
   // Toggle transcript mode (ctrl+o). Two-way prompt ↔ transcript.
   // Brief view has its own dedicated toggle on ctrl+shift+b.
@@ -116,11 +111,6 @@ export function GlobalKeybindingHandlers({
       }
     }
     const isEnteringTranscript = screen !== 'transcript';
-    logEvent('tengu_toggle_transcript', {
-      is_entering: isEnteringTranscript,
-      show_all: showAllInTranscript,
-      message_count: messageCount
-    });
     setScreen(s_1 => s_1 === 'transcript' ? 'prompt' : 'transcript');
     setShowAllInTranscript(false);
     if (isEnteringTranscript && onEnterTranscript) {
@@ -129,29 +119,21 @@ export function GlobalKeybindingHandlers({
     if (!isEnteringTranscript && onExitTranscript) {
       onExitTranscript();
     }
-  }, [screen, setScreen, isBriefOnly, showAllInTranscript, setShowAllInTranscript, messageCount, setAppState, onEnterTranscript, onExitTranscript]);
+  }, [screen, setScreen, isBriefOnly, setShowAllInTranscript, setAppState, onEnterTranscript, onExitTranscript]);
 
   // Toggle showing all messages in transcript mode (ctrl+e)
   const handleToggleShowAll = useCallback(() => {
-    logEvent('tengu_transcript_toggle_show_all', {
-      is_expanding: !showAllInTranscript,
-      message_count: messageCount
-    });
     setShowAllInTranscript(prev_1 => !prev_1);
-  }, [showAllInTranscript, setShowAllInTranscript, messageCount]);
+  }, [setShowAllInTranscript]);
 
   // Exit transcript mode (ctrl+c or escape)
   const handleExitTranscript = useCallback(() => {
-    logEvent('tengu_transcript_exit', {
-      show_all: showAllInTranscript,
-      message_count: messageCount
-    });
     setScreen('prompt');
     setShowAllInTranscript(false);
     if (onExitTranscript) {
       onExitTranscript();
     }
-  }, [setScreen, showAllInTranscript, setShowAllInTranscript, messageCount, onExitTranscript]);
+  }, [setScreen, setShowAllInTranscript, onExitTranscript]);
 
   // Toggle brief-only view (ctrl+shift+b). Pure display filter toggle —
   // does not touch opt-in state. Asymmetric gate (mirrors /brief): OFF
@@ -166,11 +148,6 @@ export function GlobalKeybindingHandlers({
       /* eslint-enable @typescript-eslint/no-require-imports */
       if (!isBriefEnabled_0() && !isBriefOnly) return;
       const next = !isBriefOnly;
-      logEvent('tengu_brief_mode_toggled', {
-        enabled: next,
-        gated: false,
-        source: 'keybinding' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
-      });
       setAppState(prev_2 => {
         if (prev_2.isBriefOnly === next) return prev_2;
         return {
@@ -208,7 +185,12 @@ export function GlobalKeybindingHandlers({
   // Toggle built-in terminal panel (meta+j).
   // toggle() blocks in spawnSync until the user detaches from tmux.
   const handleToggleTerminal = useCallback(() => {
-    getTerminalPanel().toggle();
+    if (feature('TERMINAL_PANEL')) {
+      if (!getFeatureValue_CACHED_MAY_BE_STALE('tengu_terminal_panel', false)) {
+        return;
+      }
+      getTerminalPanel().toggle();
+    }
   }, []);
   useKeybinding('app:toggleTerminal', handleToggleTerminal, {
     context: 'Global'

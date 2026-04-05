@@ -1,8 +1,4 @@
 import { getSettings_DEPRECATED } from '../../utils/settings/settings.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../analytics/index.js'
 import { getSessionsSinceLastShown, recordTipShown } from './tipHistory.js'
 import { getRelevantTips } from './tipRegistry.js'
 import type { Tip, TipContext } from './types.js'
@@ -46,13 +42,5 @@ export async function getTipToShowOnSpinner(
 }
 
 export function recordShownTip(tip: Tip): void {
-  // Record in history
   recordTipShown(tip.id)
-
-  // Log event for analytics
-  logEvent('tengu_tip_shown', {
-    tipIdLength:
-      tip.id as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    cooldownSessions: tip.cooldownSessions,
-  })
 }

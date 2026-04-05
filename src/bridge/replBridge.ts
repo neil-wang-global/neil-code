@@ -9,10 +9,6 @@ import {
 import type { BridgeConfig, BridgeApiClient } from './types.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../services/analytics/index.js'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
 import {
   handleIngressMessage,
@@ -38,7 +34,7 @@ import {
   createV2ReplTransport,
 } from './replBridgeTransport.js'
 import { updateSessionIngressAuthToken } from '../utils/sessionIngressAuth.js'
-import { isEnvTruthy, isInProtectedNamespace } from '../utils/envUtils.js'
+import { isEnvTruthy } from '../utils/envUtils.js'
 import { validateBridgeId } from './bridgeApi.js'
 import {
   describeAxiosError,
@@ -368,7 +364,6 @@ export async function initBridgeCore(
 
   logForDebugging(`[bridge:repl] Environment registered: ${environmentId}`)
   logForDiagnosticsNoPII('info', 'bridge_repl_env_registered')
-  logEvent('tengu_bridge_repl_env_registered', {})
 
   /**
    * Reconnect-in-place: if the just-registered environmentId matches what
@@ -466,7 +461,6 @@ export async function initBridgeCore(
       logForDebugging(
         '[bridge:repl] Session creation failed, deregistering environment',
       )
-      logEvent('tengu_bridge_repl_session_failed', {})
       await api.deregisterEnvironment(environmentId).catch(() => {})
       onStateChange?.('failed', 'Session creation failed')
       return null
@@ -487,10 +481,6 @@ export async function initBridgeCore(
     source: 'repl',
   })
   logForDiagnosticsNoPII('info', 'bridge_repl_session_created')
-  logEvent('tengu_bridge_repl_started', {
-    has_initial_messages: !!(initialMessages && initialMessages.length > 0),
-    inProtectedNamespace: isInProtectedNamespace(),
-  })
 
   // UUIDs of initial messages. Used for dedup in writeMessages to avoid
   // re-sending messages that were already flushed on WebSocket open.
@@ -730,15 +720,11 @@ export async function initBridgeCore(
     // the same on success; URL on mobile/web stays valid;
     // previouslyFlushedUUIDs preserved (no re-flush).
     if (await tryReconnectInPlace(requestedEnvId, currentSessionId)) {
-      logEvent('tengu_bridge_repl_reconnected_in_place', {})
       environmentRecreations = 0
       return true
     }
     // Env differs → TTL-expired/reaped; or reconnect failed.
     // Don't deregister — we have a fresh secret for this env either way.
-    if (environmentId !== requestedEnvId) {
-      logEvent('tengu_bridge_repl_env_expired_fresh_session', {})
-    }
 
     // Strategy 2: fresh session on the now-registered environment.
     // Archive the old session first — it's orphaned (bound to a dead env,
@@ -888,9 +874,6 @@ export async function initBridgeCore(
     logForDebugging(
       `[bridge:repl] Transport permanently closed: code=${closeCode}`,
     )
-    logEvent('tengu_bridge_repl_ws_closed', {
-      code: closeCode,
-    })
     // Capture SSE seq high-water mark before nulling. When called from
     // setOnClose the guard guarantees transport !== null; when fired from
     // /bridge-kick it may already be null (e.g. fired twice) — skip.
@@ -957,9 +940,6 @@ export async function initBridgeCore(
       logForDebugging(
         '[bridge:repl] reconnectEnvironmentWithSession resolved false — tearing down',
       )
-      logEvent('tengu_bridge_repl_reconnect_failed', {
-        close_code: closeCode,
-      })
       onStateChange?.('failed', 'reconnection failed')
       triggerTeardown()
     })
@@ -1163,7 +1143,6 @@ export async function initBridgeCore(
         }
         updateSessionIngressAuthToken(v1OauthToken)
       }
-      logEvent('tengu_bridge_repl_work_received', {})
 
       // Close the previous transport. Nullify BEFORE calling close() so
       // the close callback doesn't treat the programmatic close as
@@ -1214,7 +1193,6 @@ export async function initBridgeCore(
           if (transport !== newTransport) return
 
           logForDebugging('[bridge:repl] Ingress transport connected')
-          logEvent('tengu_bridge_repl_ws_connected', {})
 
           // Update the env var with the latest OAuth token so POST writes
           // (which read via getSessionIngressAuthToken()) use a fresh token.
@@ -1263,10 +1241,6 @@ export async function initBridgeCore(
               logForDebugging(
                 `[bridge:repl] Capped initial flush: ${eligibleMessages.length} -> ${cappedMessages.length} (cap=${historyCap})`,
               )
-              logEvent('tengu_bridge_repl_history_capped', {
-                eligible_count: eligibleMessages.length,
-                capped_count: cappedMessages.length,
-              })
             }
             const sdkMessages = toSDKMessages(cappedMessages)
             if (sdkMessages.length > 0) {
@@ -1419,7 +1393,6 @@ export async function initBridgeCore(
               `[bridge:repl] CCR v2: createV2ReplTransport failed: ${errorMessage(err)}`,
               { level: 'error' },
             )
-            logEvent('tengu_bridge_repl_ccr_v2_init_failed', {})
             // If a newer attempt is in flight or already succeeded, don't
             // touch its work item — our failure is irrelevant.
             if (thisGen !== v2Generation) return
@@ -1833,7 +1806,6 @@ export async function initBridgeCore(
       unregister()
       await doTeardownImpl?.()
       logForDebugging('[bridge:repl] Torn down')
-      logEvent('tengu_bridge_repl_teardown', {})
     },
   }
 }
@@ -1990,10 +1962,6 @@ async function startWorkPollLoop({
             pollConfig.non_exclusive_heartbeat_interval_ms > 0 &&
             getHeartbeatInfo
           ) {
-            logEvent('tengu_bridge_heartbeat_mode_entered', {
-              heartbeat_interval_ms:
-                pollConfig.non_exclusive_heartbeat_interval_ms,
-            })
             // Deadline computed once at entry — GB updates to atCapMs don't
             // shift an in-flight deadline (next entry picks up the new value).
             const pollDeadline = atCapMs > 0 ? Date.now() + atCapMs : null
@@ -2027,13 +1995,6 @@ async function startWorkPollLoop({
                 )
                 if (err instanceof BridgeFatalError) {
                   cap.cleanup()
-                  logEvent('tengu_bridge_heartbeat_error', {
-                    status:
-                      err.status as unknown as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-                    error_type: (err.status === 401 || err.status === 403
-                      ? 'auth_failed'
-                      : 'fatal') as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-                  })
                   // JWT expired (401/403) or work item gone (404/410).
                   // Either way the current transport is dead — SSE
                   // reconnects and CCR writes will fail on the same
@@ -2071,11 +2032,6 @@ async function startWorkPollLoop({
                   : pollDeadline !== null && Date.now() >= pollDeadline
                     ? 'poll_due'
                     : 'config_disabled'
-            logEvent('tengu_bridge_heartbeat_mode_exited', {
-              reason:
-                exitReason as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              heartbeat_cycles: hbCycles,
-            })
 
             // On auth_failed or fatal, backoff before polling to avoid a
             // tight poll+heartbeat loop. Fall through to the shared sleep
@@ -2123,9 +2079,6 @@ async function startWorkPollLoop({
               logForDebugging(
                 `[bridge:repl] At-capacity sleep overran by ${Math.round(overrun / 1000)}s — process suspension detected, forcing one fast-poll cycle`,
               )
-              logEvent('tengu_bridge_repl_suspension_detected', {
-                overrun_ms: overrun,
-              })
               suspensionDetected = true
             }
           }
@@ -2143,7 +2096,6 @@ async function startWorkPollLoop({
         logForDebugging(
           `[bridge:repl] Failed to decode work secret: ${errorMessage(err)}`,
         )
-        logEvent('tengu_bridge_repl_work_secret_failed', {})
         // Can't ack (needs the JWT we failed to decode). stopWork uses OAuth.
         // Prevents XAUTOCLAIM re-delivering this poisoned item every cycle.
         await api.stopWork(envId, work.id, false).catch(() => {})
@@ -2220,9 +2172,6 @@ async function startWorkPollLoop({
         logForDebugging(
           `[bridge:repl] Environment deleted, attempting re-registration (attempt ${environmentRecreations}/${MAX_ENVIRONMENT_RECREATIONS})`,
         )
-        logEvent('tengu_bridge_repl_env_lost', {
-          attempt: environmentRecreations,
-        } as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS)
 
         if (environmentRecreations > MAX_ENVIRONMENT_RECREATIONS) {
           logForDebugging(
@@ -2276,11 +2225,6 @@ async function startWorkPollLoop({
         logForDebugging(
           `[bridge:repl] Fatal poll error: ${err.message} (status=${err.status}, type=${err.errorType ?? 'unknown'})${isSuppressible ? ' (suppressed)' : ''}`,
         )
-        logEvent('tengu_bridge_repl_fatal_error', {
-          status: err.status,
-          error_type:
-            err.errorType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        })
         logForDiagnosticsNoPII(
           isExpiry ? 'info' : 'error',
           'bridge_repl_fatal_error',
@@ -2336,11 +2280,6 @@ async function startWorkPollLoop({
       logForDebugging(
         `[bridge:repl] Poll error (attempt ${consecutiveErrors}, elapsed ${Math.round(elapsed / 1000)}s, ws=${wsLabel}): ${errMsg}`,
       )
-      logEvent('tengu_bridge_repl_poll_error', {
-        status: httpStatus,
-        consecutiveErrors,
-        elapsedMs: elapsed,
-      } as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS)
 
       // Only transition to 'reconnecting' on the first error — stay
       // there until a successful poll (avoid flickering the UI state).
@@ -2354,11 +2293,6 @@ async function startWorkPollLoop({
           `[bridge:repl] Poll failures exceeded ${POLL_ERROR_GIVE_UP_MS / 1000}s (${consecutiveErrors} errors), giving up`,
         )
         logForDiagnosticsNoPII('info', 'bridge_repl_poll_give_up')
-        logEvent('tengu_bridge_repl_poll_give_up', {
-          consecutiveErrors,
-          elapsedMs: elapsed,
-          lastStatus: httpStatus,
-        } as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS)
         onStateChange?.('failed', 'connection to server lost')
         break
       }
