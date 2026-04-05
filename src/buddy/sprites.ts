@@ -5,10 +5,12 @@ type SpriteInput = { species: Species; eye: Eye; hat: Hat }
 import {
   axolotl,
   blob,
+  bulbasaur,
   cactus,
   capybara,
   cat,
   bajie,
+  charmander,
   chonk,
   cndragon,
   dodo,
@@ -18,6 +20,7 @@ import {
   ghost,
   goose,
   koromon,
+  mew,
   mewtwo,
   mushroom,
   octopus,
@@ -26,7 +29,9 @@ import {
   pikachu,
   rabbit,
   robot,
+  shiba,
   snail,
+  squirtle,
   thanos,
   totoro,
   trex,
@@ -705,6 +710,121 @@ const BODIES: Record<Species, string[][]> = {
       '  \\______/  ',
     ],
   ],
+  [mew]: [
+    [
+      '            ',
+      '   .~-~.    ',
+      '  ( {E}  {E} )  ',
+      '   ( .. )   ',
+      '    ~--~  ~ ',
+    ],
+    [
+      '            ',
+      '   .~-~.    ',
+      '  ( {E}  {E} )  ',
+      '   ( .. )   ',
+      '   ~--~   ~ ',
+    ],
+    [
+      '     *      ',
+      '   .~-~.    ',
+      '  ( {E}  {E} )  ',
+      '   ( .. )   ',
+      '    ~--~ *  ',
+    ],
+  ],
+  [charmander]: [
+    [
+      '            ',
+      '   .---.    ',
+      '  ( {E}  {E} )  ',
+      '  (  __  )  ',
+      '   `--´ *   ',
+    ],
+    [
+      '            ',
+      '   .---.    ',
+      '  ( {E}  {E} )  ',
+      '  (  __  )  ',
+      '   `--´ **  ',
+    ],
+    [
+      '            ',
+      '   .---.    ',
+      '  ( {E}  {E} )  ',
+      '  ( .--. )  ',
+      '   `--´*    ',
+    ],
+  ],
+  [squirtle]: [
+    [
+      '            ',
+      '   .---.    ',
+      '  ( {E}  {E} )  ',
+      '  (  __  )  ',
+      '  [_/  \\_]  ',
+    ],
+    [
+      '            ',
+      '   .---.    ',
+      '  ( {E}  {E} )  ',
+      '  ( .--. )  ',
+      '  [_/  \\_]  ',
+    ],
+    [
+      '    ~ ~     ',
+      '   .---.    ',
+      '  ( {E}  {E} )  ',
+      '  (  __  )  ',
+      '  [_/  \\_]  ',
+    ],
+  ],
+  [bulbasaur]: [
+    [
+      '            ',
+      '  \\~~~~~//  ',
+      '  ({E} __ {E})  ',
+      '  ( .--. )  ',
+      '   ``  ``   ',
+    ],
+    [
+      '            ',
+      '  //~~~~~\\  ',
+      '  ({E} __ {E})  ',
+      '  ( .--. )  ',
+      '   ``  ``   ',
+    ],
+    [
+      '    ~~~~    ',
+      '  \\~~~~~//  ',
+      '  ({E} __ {E})  ',
+      '  ( .--. )  ',
+      '   ``  ``   ',
+    ],
+  ],
+  [shiba]: [
+    [
+      '            ',
+      '  /\\    /\\  ',
+      ' ( {E}    {E} ) ',
+      ' (  \\__/  ) ',
+      '  `------´  ',
+    ],
+    [
+      '            ',
+      '  /\\    /|  ',
+      ' ( {E}    {E} ) ',
+      ' (  \\__/  ) ',
+      '  `------´~ ',
+    ],
+    [
+      '            ',
+      '  /\\    /\\  ',
+      ' ( {E}    {E} ) ',
+      ' (   __   ) ',
+      '  `------´  ',
+    ],
+  ],
 }
 
 const HAT_LINES: Record<Hat, string> = {
@@ -811,5 +931,15 @@ export function renderFace(bones: SpriteInput): string {
       return `<${eye}vv${eye}>`
     case thanos:
       return `{${eye}==${eye}}`
+    case mew:
+      return `~${eye}..${eye}~`
+    case charmander:
+      return `(${eye}__${eye})*`
+    case squirtle:
+      return `(${eye}__${eye})`
+    case bulbasaur:
+      return `(${eye}~~${eye})`
+    case shiba:
+      return `(${eye}w${eye})`
   }
 }

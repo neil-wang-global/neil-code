@@ -62,6 +62,13 @@ export const koromon = c(0x6b, 0x6f, 0x72, 0x6f, 0x6d, 0x6f, 0x6e) as 'koromon'
 export const dodo = c(0x64, 0x6f, 0x64, 0x6f) as 'dodo'
 export const trex = c(0x74, 0x72, 0x65, 0x78) as 'trex'
 export const thanos = c(0x74, 0x68, 0x61, 0x6e, 0x6f, 0x73) as 'thanos'
+export const mew = c(0x6d, 0x65, 0x77) as 'mew'
+// biome-ignore format: keep the species list compact
+export const charmander = c(0x63, 0x68, 0x61, 0x72, 0x6d, 0x61, 0x6e, 0x64, 0x65, 0x72) as 'charmander'
+export const squirtle = c(0x73, 0x71, 0x75, 0x69, 0x72, 0x74, 0x6c, 0x65) as 'squirtle'
+// biome-ignore format: keep the species list compact
+export const bulbasaur = c(0x62, 0x75, 0x6c, 0x62, 0x61, 0x73, 0x61, 0x75, 0x72) as 'bulbasaur'
+export const shiba = c(0x73, 0x68, 0x69, 0x62, 0x61) as 'shiba'
 
 export const SPECIES = [
   duck,
@@ -93,6 +100,11 @@ export const SPECIES = [
   dodo,
   trex,
   thanos,
+  mew,
+  charmander,
+  squirtle,
+  bulbasaur,
+  shiba,
 ] as const
 export type Species = (typeof SPECIES)[number] // biome-ignore format: keep compact
 
@@ -121,9 +133,9 @@ export const STAT_NAMES = [
 export type StatName = (typeof STAT_NAMES)[number]
 
 // Species base stats (race values). No cap — IVs (0-31) are added on top.
-// T1 (BST 530-600): dragon, ghost, capybara, cndragon, wukong, totoro, gamabunta, mewtwo, bajie, pikachu, koromon, trex, thanos
+// T1 (BST 525-600): dragon, ghost, capybara, cndragon, wukong, totoro, gamabunta, mewtwo, mew, bajie, pikachu, koromon, trex, thanos
 // T2 (BST 460-510): octopus, robot, cat, owl
-// T3 (BST 380-430): axolotl, penguin, cactus, goose, mushroom, turtle
+// T3 (BST 380-430): axolotl, penguin, cactus, goose, mushroom, turtle, charmander, squirtle, bulbasaur, shiba
 // T4 (BST 300-350): chonk, duck, blob, snail, rabbit, dodo
 export const SPECIES_BASE_STATS: Record<Species, Record<StatName, number>> = {
   // T1 — legendary tier (BST 530-600)
@@ -134,7 +146,8 @@ export const SPECIES_BASE_STATS: Record<Species, Record<StatName, number>> = {
   [wukong]:    { DEBUGGING: 145, PATIENCE:  25, CHAOS: 154, WISDOM: 110, SNARK:  90 },
   [totoro]:    { DEBUGGING:  75, PATIENCE: 145, CHAOS:  40, WISDOM: 135, SNARK: 105 },
   [gamabunta]: { DEBUGGING: 110, PATIENCE:  55, CHAOS: 125, WISDOM: 115, SNARK: 105 },
-  [mewtwo]:    { DEBUGGING: 154, PATIENCE:  50, CHAOS:  90, WISDOM: 150, SNARK:  80 },
+  [mewtwo]:    { DEBUGGING: 160, PATIENCE:  60, CHAOS: 100, WISDOM: 154, SNARK:  86 },
+  [mew]:       { DEBUGGING: 105, PATIENCE: 105, CHAOS: 105, WISDOM: 105, SNARK: 105 },
   [bajie]:     { DEBUGGING:  80, PATIENCE: 120, CHAOS:  90, WISDOM:  85, SNARK: 130 },
   [pikachu]:   { DEBUGGING: 100, PATIENCE:  80, CHAOS: 115, WISDOM:  95, SNARK: 115 },
   [koromon]:   { DEBUGGING:  90, PATIENCE:  95, CHAOS: 105, WISDOM: 100, SNARK: 110 },
@@ -152,6 +165,10 @@ export const SPECIES_BASE_STATS: Record<Species, Record<StatName, number>> = {
   [goose]:     { DEBUGGING:  55, PATIENCE:  25, CHAOS: 130, WISDOM:  50, SNARK: 125 },
   [mushroom]:  { DEBUGGING:  55, PATIENCE:  80, CHAOS: 105, WISDOM:  85, SNARK:  50 },
   [turtle]:    { DEBUGGING:  50, PATIENCE: 135, CHAOS:  20, WISDOM: 100, SNARK:  65 },
+  [charmander]:{ DEBUGGING:  85, PATIENCE:  50, CHAOS: 110, WISDOM:  75, SNARK:  85 },
+  [squirtle]:  { DEBUGGING:  70, PATIENCE: 100, CHAOS:  55, WISDOM:  90, SNARK:  75 },
+  [bulbasaur]: { DEBUGGING:  75, PATIENCE:  95, CHAOS:  60, WISDOM:  95, SNARK:  65 },
+  [shiba]:     { DEBUGGING:  60, PATIENCE:  85, CHAOS:  95, WISDOM:  70, SNARK: 100 },
   // T4 — basic tier (BST 300-350)
   [chonk]:     { DEBUGGING:  40, PATIENCE: 105, CHAOS:  65, WISDOM:  50, SNARK:  90 },
   [duck]:      { DEBUGGING:  70, PATIENCE:  80, CHAOS:  55, WISDOM:  80, SNARK:  55 },
@@ -289,6 +306,11 @@ export const SPECIES_DESCRIPTIONS: Record<Species, string> = {
   [dodo]:      '已灭绝但还在坚持 code review',
   [trex]:      '一口咬碎整个技术债',
   [thanos]:    '一个响指，半数 bug 灰飞烟灭',
+  [mew]:       '据说代码里每个未知 bug 都是它变的',
+  [charmander]:'尾巴上的火焰越旺，编译越快',
+  [squirtle]:  '用水枪冲掉所有 flaky test',
+  [bulbasaur]: '种子一发芽，新特性就长出来了',
+  [shiba]:     '歪着头看你写代码，偶尔汪一声表示怀疑',
 }
 
 export const PERSONALITIES = [
@@ -326,13 +348,18 @@ export const SPECIES_LABELS: Record<Species, string> = {
   [wukong]: '孙悟空',
   [totoro]: '龙猫',
   [gamabunta]: '蛤蟆文太',
-  [mewtwo]: '迈巴龙',
+  [mewtwo]: '超梦',
   [bajie]: '八戒',
   [pikachu]: '皮卡丘',
   [koromon]: '滚球兽',
   [dodo]: '嘟嘟鸟',
   [trex]: '霸王龙',
   [thanos]: '灭霸',
+  [mew]: '梦幻',
+  [charmander]: '小火龙',
+  [squirtle]: '杰尼龟',
+  [bulbasaur]: '妙蛙种子',
+  [shiba]: '柴犬',
 }
 
 export const RARITY_LABELS: Record<Rarity, string> = {
@@ -449,5 +476,10 @@ export const SPECIES_TO_RACE: Record<Species, Race> = {
   [dodo]: 'bird',
   [trex]: 'dragonkin',
   [thanos]: 'cosmic',
+  [mew]: 'psychic',
+  [charmander]: 'pokemon',
+  [squirtle]: 'pokemon',
+  [bulbasaur]: 'pokemon',
+  [shiba]: 'beast',
 }
 
