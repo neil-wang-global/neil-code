@@ -6,7 +6,6 @@ import type {
 import { createHash } from 'crypto'
 import { SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from 'src/constants/prompts.js'
 import { getSystemContext, getUserContext } from 'src/context.js'
-import { isAnalyticsDisabled } from 'src/services/analytics/config.js'
 import {
   checkStatsigFeatureGate_CACHED_MAY_BE_STALE,
   getFeatureValue_CACHED_MAY_BE_STALE,
@@ -480,10 +479,6 @@ export async function logContextMetrics(
   mcpConfigs: Record<string, ScopedMcpServerConfig>,
   toolPermissionContext: ToolPermissionContext,
 ): Promise<void> {
-  // Early return if logging is disabled
-  if (isAnalyticsDisabled()) {
-    return
-  }
   const [{ tools: mcpTools }, tools, userContext, systemContext] =
     await Promise.all([
       prefetchAllMcpResources(mcpConfigs),

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { isFeedbackSurveyDisabled } from 'src/services/analytics/config.js';
+import { isTelemetryDisabled } from '../../utils/privacyLevel.js';
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js';
 import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from 'src/services/analytics/index.js';
 import { isAutoMemoryEnabled } from '../../memdir/paths.js';
@@ -172,7 +172,7 @@ export function useMemorySurvey(messages: Message[], isLoading: boolean, hasActi
     if (!isAutoMemoryEnabled()) {
       return;
     }
-    if (isFeedbackSurveyDisabled()) {
+    if (isTelemetryDisabled()) {
       return;
     }
     if (!isPolicyAllowed('allow_product_feedback')) {

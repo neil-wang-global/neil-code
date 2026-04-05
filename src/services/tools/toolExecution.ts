@@ -8,16 +8,7 @@ import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
 } from 'src/services/analytics/index.js'
-import {
-  extractMcpToolDetails,
-  extractSkillName,
-  extractToolInputForTelemetry,
-  getFileExtensionForAnalytics,
-  getFileExtensionsFromBashCommand,
-  isToolDetailsLoggingEnabled,
-  mcpToolDetailsForAnalytics,
-  sanitizeToolNameForAnalytics,
-} from 'src/services/analytics/metadata.js'
+import { sanitizeToolNameForAnalytics } from 'src/services/analytics/metadata.js'
 import {
   addToToolDuration,
   getCodeEditToolDecisionCounter,
@@ -41,9 +32,6 @@ import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
 import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
 import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
-import { NOTEBOOK_EDIT_TOOL_NAME } from '../../tools/NotebookEditTool/constants.js'
-import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
-import { parseGitCommitId } from '../../tools/shared/gitOperationTracking.js'
 import {
   isDeferredTool,
   TOOL_SEARCH_TOOL_NAME,
@@ -85,7 +73,6 @@ import {
   startSessionActivity,
   stopSessionActivity,
 } from '../../utils/sessionActivity.js'
-import { jsonStringify } from '../../utils/slowOperations.js'
 import { Stream } from '../../utils/stream.js'
 import { logOTelEvent } from '../../utils/telemetry/events.js'
 import {
@@ -391,7 +378,6 @@ export async function* runToolUse(
         requestId:
           requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       }),
-      ...mcpToolDetailsForAnalytics(toolName, mcpServerType, mcpServerBaseUrl),
     })
     yield {
       message: createUserMessage({
@@ -434,11 +420,6 @@ export async function* runToolUse(
           requestId:
             requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         }),
-        ...mcpToolDetailsForAnalytics(
-          tool.name,
-          mcpServerType,
-          mcpServerBaseUrl,
-        ),
       })
       const content = createToolResultStopMessage(toolUse.id)
       content.content = withMemoryCorrectionHint(CANCEL_MESSAGE)
@@ -540,11 +521,6 @@ function streamedCheckPermissionsAndCallTool(
           requestId:
             requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         }),
-        ...mcpToolDetailsForAnalytics(
-          tool.name,
-          mcpServerType,
-          mcpServerBaseUrl,
-        ),
       })
       stream.enqueue({
         message: createProgressMessage({
@@ -659,7 +635,6 @@ async function checkPermissionsAndCallTool(
         requestId:
           requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       }),
-      ...mcpToolDetailsForAnalytics(tool.name, mcpServerType, mcpServerBaseUrl),
     })
     return [
       {
@@ -712,7 +687,6 @@ async function checkPermissionsAndCallTool(
         requestId:
           requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       }),
-      ...mcpToolDetailsForAnalytics(tool.name, mcpServerType, mcpServerBaseUrl),
     })
     return [
       {
@@ -1018,7 +992,6 @@ async function checkPermissionsAndCallTool(
         requestId:
           requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       }),
-      ...mcpToolDetailsForAnalytics(tool.name, mcpServerType, mcpServerBaseUrl),
     })
     let errorMessage = permissionDecision.message
     // Only use generic "Execution stopped" message if we don't have a detailed hook message
@@ -1122,7 +1095,6 @@ async function checkPermissionsAndCallTool(
       requestId:
         requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
     }),
-    ...mcpToolDetailsForAnalytics(tool.name, mcpServerType, mcpServerBaseUrl),
   })
 
   // Use the updated input from permissions if provided
@@ -1131,42 +1103,6 @@ async function checkPermissionsAndCallTool(
     processedInput = permissionDecision.updatedInput
   }
 
-  // Prepare tool parameters for logging in tool_result event.
-  // Gated by OTEL_LOG_TOOL_DETAILS — tool parameters can contain sensitive
-  // content (bash commands, MCP server names, etc.) so they're opt-in only.
-  const telemetryToolInput = extractToolInputForTelemetry(processedInput)
-  let toolParameters: Record<string, unknown> = {}
-  if (isToolDetailsLoggingEnabled()) {
-    if (tool.name === BASH_TOOL_NAME && 'command' in processedInput) {
-      const bashInput = processedInput as BashToolInput
-      const commandParts = bashInput.command.trim().split(/\s+/)
-      const bashCommand = commandParts[0] || ''
-
-      toolParameters = {
-        bash_command: bashCommand,
-        full_command: bashInput.command,
-        ...(bashInput.timeout !== undefined && {
-          timeout: bashInput.timeout,
-        }),
-        ...(bashInput.description !== undefined && {
-          description: bashInput.description,
-        }),
-        ...('dangerouslyDisableSandbox' in bashInput && {
-          dangerouslyDisableSandbox: bashInput.dangerouslyDisableSandbox,
-        }),
-      }
-    }
-
-    const mcpDetails = extractMcpToolDetails(tool.name)
-    if (mcpDetails) {
-      toolParameters.mcp_server_name = mcpDetails.serverName
-      toolParameters.mcp_tool_name = mcpDetails.mcpToolName
-    }
-    const skillName = extractSkillName(tool.name, processedInput)
-    if (skillName) {
-      toolParameters.skill_name = skillName
-    }
-  }
 
   const decisionInfo = toolUseContext.toolDecisions?.get(toolUseID)
   endToolBlockedOnUserSpan(
@@ -1300,34 +1236,6 @@ async function checkPermissionsAndCallTool(
         ? mappedContent.length
         : jsonStringify(mappedContent).length
 
-    // Extract file extension for file-related tools
-    let fileExtension: ReturnType<typeof getFileExtensionForAnalytics>
-    if (processedInput && typeof processedInput === 'object') {
-      if (
-        (tool.name === FILE_READ_TOOL_NAME ||
-          tool.name === FILE_EDIT_TOOL_NAME ||
-          tool.name === FILE_WRITE_TOOL_NAME) &&
-        'file_path' in processedInput
-      ) {
-        fileExtension = getFileExtensionForAnalytics(
-          String(processedInput.file_path),
-        )
-      } else if (
-        tool.name === NOTEBOOK_EDIT_TOOL_NAME &&
-        'notebook_path' in processedInput
-      ) {
-        fileExtension = getFileExtensionForAnalytics(
-          String(processedInput.notebook_path),
-        )
-      } else if (tool.name === BASH_TOOL_NAME && 'command' in processedInput) {
-        const bashInput = processedInput as BashToolInput
-        fileExtension = getFileExtensionsFromBashCommand(
-          bashInput.command,
-          bashInput._simulatedSedEdit?.filePath,
-        )
-      }
-    }
-
     logEvent('tengu_tool_use_success', {
       messageID:
         messageId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -1336,7 +1244,6 @@ async function checkPermissionsAndCallTool(
       durationMs,
       preToolHookDurationMs,
       toolResultSizeBytes,
-      ...(fileExtension !== undefined && { fileExtension }),
 
       queryChainId: toolUseContext.queryTracking
         ?.chainId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -1353,25 +1260,7 @@ async function checkPermissionsAndCallTool(
         requestId:
           requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       }),
-      ...mcpToolDetailsForAnalytics(tool.name, mcpServerType, mcpServerBaseUrl),
     })
-
-    // Enrich tool parameters with git commit ID from successful git commit output
-    if (
-      isToolDetailsLoggingEnabled() &&
-      (tool.name === BASH_TOOL_NAME || tool.name === POWERSHELL_TOOL_NAME) &&
-      'command' in processedInput &&
-      typeof processedInput.command === 'string' &&
-      processedInput.command.match(/\bgit\s+commit\b/) &&
-      result.data &&
-      typeof result.data === 'object' &&
-      'stdout' in result.data
-    ) {
-      const gitCommitId = parseGitCommitId(String(result.data.stdout))
-      if (gitCommitId) {
-        toolParameters.git_commit_id = gitCommitId
-      }
-    }
 
     // Log tool result event for OTLP with tool parameters and decision context
     const mcpServerScope = isMcpTool(tool)
@@ -1382,10 +1271,6 @@ async function checkPermissionsAndCallTool(
       tool_name: sanitizeToolNameForAnalytics(tool.name),
       success: 'true',
       duration_ms: String(durationMs),
-      ...(Object.keys(toolParameters).length > 0 && {
-        tool_parameters: jsonStringify(toolParameters),
-      }),
-      ...(telemetryToolInput && { tool_input: telemetryToolInput }),
       tool_result_size_bytes: String(toolResultSizeBytes),
       ...(decisionInfo && {
         decision_source: decisionInfo.source,
@@ -1660,11 +1545,6 @@ async function checkPermissionsAndCallTool(
           requestId:
             requestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         }),
-        ...mcpToolDetailsForAnalytics(
-          tool.name,
-          mcpServerType,
-          mcpServerBaseUrl,
-        ),
       })
       // Log tool result error event for OTLP with tool parameters and decision context
       const mcpServerScope = isMcpTool(tool)
@@ -1677,10 +1557,6 @@ async function checkPermissionsAndCallTool(
         success: 'false',
         duration_ms: String(durationMs),
         error: errorMessage(error),
-        ...(Object.keys(toolParameters).length > 0 && {
-          tool_parameters: jsonStringify(toolParameters),
-        }),
-        ...(telemetryToolInput && { tool_input: telemetryToolInput }),
         ...(decisionInfo && {
           decision_source: decisionInfo.source,
           decision_type: decisionInfo.decision,

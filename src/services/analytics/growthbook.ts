@@ -20,10 +20,6 @@ import {
   type GitHubActionsMetadata,
   getUserForGrowthBook,
 } from '../../utils/user.js'
-import {
-  is1PEventLoggingEnabled,
-  logGrowthBookExperimentTo1P,
-} from './firstPartyEventLogger.js'
 
 /**
  * User attributes sent to GrowthBook for targeting.
@@ -95,10 +91,8 @@ let reinitializingPromise: Promise<unknown> | null = null
 
 // Listeners notified when GrowthBook feature values refresh (initial init or
 // periodic refresh). Use for systems that bake feature values into long-lived
-// objects at construction time (e.g. firstPartyEventLogger reads
-// tengu_1p_event_batch_config once and builds a LoggerProvider with it) and
-// need to rebuild when config changes. Per-call readers like
-// getEventSamplingConfig / isSinkKilled don't need this — they're already
+// objects at construction time and need to rebuild when config changes.
+// Per-call readers of GrowthBook config don't need this — they're already
 // reactive.
 //
 // NOT cleared by resetGrowthBook — subscribers register once (typically in
@@ -302,14 +296,6 @@ function logExposureForFeature(feature: string): void {
   const expData = experimentDataByFeature.get(feature)
   if (expData) {
     loggedExposures.add(feature)
-    logGrowthBookExperimentTo1P({
-      experimentId: expData.experimentId,
-      variationId: expData.variationId,
-      userAttributes: getUserAttributes(),
-      experimentMetadata: {
-        feature_id: feature,
-      },
-    })
   }
 }
 
@@ -420,8 +406,7 @@ function syncRemoteEvalToDisk(): void {
  * Check if GrowthBook operations should be enabled
  */
 function isGrowthBookEnabled(): boolean {
-  // GrowthBook depends on 1P event logging.
-  return is1PEventLoggingEnabled()
+  return true
 }
 
 /**

@@ -6,7 +6,6 @@ import type { ExitReason } from 'src/entrypoints/agentSdkTypes.js'
 import {
   getIsInteractive,
   getIsScrollDraining,
-  getLastMainRequestId,
   getSessionId,
   isSessionPersistenceDisabled,
 } from '../bootstrap/state.js'
@@ -29,19 +28,12 @@ import {
   supportsTabStatus,
   wrapForMultiplexer,
 } from '../ink/termio/osc.js'
-import { shutdownDatadog } from '../services/analytics/datadog.js'
-import { shutdown1PEventLogging } from '../services/analytics/firstPartyEventLogger.js'
-import {
-  type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-  logEvent,
-} from '../services/analytics/index.js'
 import type { AppState } from '../state/AppState.js'
 import { runCleanupFunctions } from './cleanupRegistry.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { isEnvTruthy } from './envUtils.js'
 import { getCurrentSessionTitle, sessionIdExists } from './sessionStorage.js'
-import { sleep } from './sleep.js'
 import { profileReport } from './startupProfiler.js'
 
 /**
@@ -484,30 +476,6 @@ export async function gracefulShutdown(
     profileReport()
   } catch {
     // Ignore profiling errors during shutdown
-  }
-
-  // Signal to inference that this session's cache can be evicted.
-  // Fires before analytics flush so the event makes it to the pipeline.
-  const lastRequestId = getLastMainRequestId()
-  if (lastRequestId) {
-    logEvent('tengu_cache_eviction_hint', {
-      scope:
-        'session_end' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      last_request_id:
-        lastRequestId as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-    })
-  }
-
-  // Flush analytics — capped at 500ms. Previously unbounded: the 1P exporter
-  // awaits all pending axios POSTs (10s each), eating the full failsafe budget.
-  // Lost analytics on slow networks are acceptable; a hanging exit is not.
-  try {
-    await Promise.race([
-      Promise.all([shutdown1PEventLogging(), shutdownDatadog()]),
-      sleep(500),
-    ])
-  } catch {
-    // Ignore analytics shutdown errors
   }
 
   if (options?.finalMessage) {

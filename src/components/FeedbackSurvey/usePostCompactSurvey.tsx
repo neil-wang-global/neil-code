@@ -1,6 +1,6 @@
 import { c as _c } from "react/compiler-runtime";
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { isFeedbackSurveyDisabled } from 'src/services/analytics/config.js';
+import { isTelemetryDisabled } from '../../utils/privacyLevel.js';
 import { checkStatsigFeatureGate_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js';
 import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from 'src/services/analytics/index.js';
 import { shouldUseSessionMemoryCompaction } from '../../services/compact/sessionMemoryCompact.js';
@@ -116,7 +116,7 @@ export function usePostCompactSurvey(messages, isLoading, t0, t1) {
       if (gateEnabled !== true) {
         return;
       }
-      if (isFeedbackSurveyDisabled()) {
+      if (isTelemetryDisabled()) {
         return;
       }
       if (isEnvTruthy(process.env.CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY)) {
