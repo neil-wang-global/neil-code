@@ -171,6 +171,7 @@
 | **Bypass Permissions 模式** | Shift+Tab 循环中加入第四模式，跳过所有权限确认 |
 | **Token 预算** | 消息中加 `+500k`、`+2m` 等指令指定 token 消耗目标 |
 | **终端面板捕获** | `terminal_capture` 工具读取 Alt+J 终端面板内容 |
+| **精简输出模式** | 设置 `CLAUDE_CODE_STREAMLINED_OUTPUT=true` + `stream-json` 格式时，输出只保留文本和工具摘要 |
 | **设置跨环境同步** | 本地设置自动上传云端，远程环境自动拉取 |
 | **MCP Skills 发现** | 从 MCP 服务器自动发现和加载 `skill://` 资源 |
 | **修复 WebFetch 网页抓取** | 补齐缺失依赖，WebFetch 工具恢复正常，可抓取和分析任意网页内容 |
