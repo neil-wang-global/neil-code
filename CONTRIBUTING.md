@@ -7,10 +7,10 @@
 ## 工作流程
 
 1. **Fork** 本仓库并 clone 到本地
-2. 基于 `version/{version-id}` 分支创建你的功能分支
+2. 基于 `main` 分支创建你的功能分支
 3. 在本地完成开发与测试
 4. 确保所有提交符合下方的 **Conventional Commit 规范**
-5. 提交 **Pull Request** 到 `version/{version-id}` 分支
+5. 提交 **Pull Request** 到 `main` 分支
 6. 等待 Code Review，根据反馈修改后合并
 
 ## 环境准备
