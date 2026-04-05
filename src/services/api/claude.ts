@@ -169,7 +169,6 @@ import { logForDiagnosticsNoPII } from 'src/utils/diagLogs.js'
 import { type EffortValue, modelSupportsEffort } from 'src/utils/effort.js'
 import {
   isFastModeAvailable,
-  isFastModeCooldown,
   isFastModeEnabled,
   isFastModeSupportedByModel,
 } from 'src/utils/fastMode.js'
@@ -1385,7 +1384,6 @@ async function* queryModel(
   const isFastMode =
     isFastModeEnabled() &&
     isFastModeAvailable() &&
-    !isFastModeCooldown() &&
     isFastModeSupportedByModel(options.model) &&
     !!options.fastMode
 
@@ -1626,14 +1624,12 @@ async function* queryModel(
     const enablePromptCaching =
       options.enablePromptCaching ?? getPromptCachingEnabled(retryContext.model)
 
-    // Fast mode: header is latched session-stable (cache-safe), but
-    // `speed='fast'` stays dynamic so cooldown still suppresses the actual
-    // fast-mode request without changing the cache key.
+    // Fast mode: header is latched session-stable (cache-safe), and
+    // `speed='fast'` stays dynamic based on current fast mode state.
     let speed: BetaMessageStreamParams['speed']
     const isFastModeForRetry =
       isFastModeEnabled() &&
       isFastModeAvailable() &&
-      !isFastModeCooldown() &&
       isFastModeSupportedByModel(options.model) &&
       !!retryContext.fastMode
     if (isFastModeForRetry) {
